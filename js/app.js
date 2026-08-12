@@ -660,13 +660,13 @@ const App = {
         document.documentElement.setAttribute('data-theme', next);
         DataStore.set(DataStore.KEYS.THEME, next);
 
-        // Update theme icon in header
-        const themeBtn = document.getElementById('theme-toggle-btn');
-        if (themeBtn) {
-            themeBtn.innerHTML = `<i class="fa-solid ${next === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>`;
-        }
+        // Update all theme icons on the page
+        const themeBtns = document.querySelectorAll('#theme-toggle-btn, .theme-toggle-btn');
+        themeBtns.forEach(btn => {
+            btn.innerHTML = `<i class="fa-solid ${next === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>`;
+        });
 
-        // Update toggle in settings
+        // Update toggle in settings if present
         const darkToggle = document.getElementById('dark-mode-toggle');
         if (darkToggle) {
             darkToggle.checked = next === 'dark';

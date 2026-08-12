@@ -425,6 +425,8 @@ small { font-size: 0.8125rem; color: var(--text-tertiary); }
     justify-content: center;
     border-radius: var(--radius-md);
     color: var(--text-secondary);
+    background: transparent;
+    border: none;
     transition: all var(--transition-fast);
     cursor: pointer;
     font-size: 1.1rem;
@@ -1513,7 +1515,37 @@ small { font-size: 0.8125rem; color: var(--text-tertiary); }
 .landing-nav-links {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+}
+.landing-nav-links .theme-toggle-btn {
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 1rem;
+}
+.landing-nav-links .theme-toggle-btn:hover {
+    background: var(--gray-100);
+    border-color: var(--primary-300);
+    color: var(--primary-600);
+    transform: translateY(-1px);
+}
+[data-theme="dark"] .landing-nav-links .theme-toggle-btn {
+    background: var(--gray-800);
+    border-color: var(--gray-700);
+    color: var(--warning-400);
+}
+[data-theme="dark"] .landing-nav-links .theme-toggle-btn:hover {
+    background: var(--gray-700);
+    border-color: var(--primary-500);
+    color: var(--warning-300);
 }
 
 /* ── Hero Section ────────────────────────────────────── */

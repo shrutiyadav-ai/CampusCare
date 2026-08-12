@@ -24,6 +24,9 @@ const Views = {
                     <span class="logo-text">CampusCare</span>
                 </div>
                 <div class="landing-nav-links">
+                    <button class="header-icon-btn theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
+                        <i class="fa-solid ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>
+                    </button>
                     <a href="#/login" class="btn btn-outline btn-sm">Login</a>
                     <a href="#/register" class="btn btn-primary btn-sm">Get Started</a>
                 </div>
