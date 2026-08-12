@@ -106,6 +106,11 @@ const App = {
         // Setup file upload drag/drop
         this.setupFileUpload();
 
+        // Setup scroll-reveal animations on landing page
+        if (hash === '#/' || hash === '') {
+            this.setupScrollReveal();
+        }
+
         // Focus management
         const mainContent = document.getElementById('main-content');
         if (mainContent) {
@@ -114,6 +119,22 @@ const App = {
 
         // Scroll to top
         window.scrollTo(0, 0);
+    },
+
+    setupScrollReveal() {
+        const revealElements = document.querySelectorAll('.reveal-on-scroll');
+        if (!revealElements.length) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+        revealElements.forEach(el => observer.observe(el));
     },
 
     renderDashboardCharts() {

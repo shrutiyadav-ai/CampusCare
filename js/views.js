@@ -9,6 +9,13 @@ const Views = {
     //  LANDING PAGE
     // ════════════════════════════════════════════════════
     landing() {
+        // Pull LIVE system stats — no fake data
+        const allComplaints = Complaints.getAll();
+        const stats = Complaints.getStats(allComplaints);
+        const users = DataStore.get(DataStore.KEYS.USERS) || [];
+        const studentCount = users.filter(u => u.role === 'student').length;
+        const resolutionRate = stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0;
+
         return `
         <div class="landing-page">
             <nav class="landing-nav">
@@ -18,101 +25,160 @@ const Views = {
                 </div>
                 <div class="landing-nav-links">
                     <a href="#/login" class="btn btn-outline btn-sm">Login</a>
-                    <a href="#/register" class="btn btn-primary btn-sm">Register</a>
+                    <a href="#/register" class="btn btn-primary btn-sm">Get Started</a>
                 </div>
             </nav>
 
             <section class="hero-section">
+                <!-- Floating animated shapes -->
+                <div class="hero-floating-shapes" aria-hidden="true">
+                    <div class="floating-shape shape-1"></div>
+                    <div class="floating-shape shape-2"></div>
+                    <div class="floating-shape shape-3"></div>
+                    <div class="floating-shape shape-4"></div>
+                    <div class="floating-shape shape-5"></div>
+                </div>
+
                 <div class="hero-content">
-                    <div class="hero-badge"><i class="fa-solid fa-shield-check"></i> Trusted by 5,000+ Students</div>
-                    <h1>CampusCare</h1>
-                    <h2>Raise Your Voice. Improve Your Campus.</h2>
-                    <p class="hero-subtitle">A simple and transparent platform for students to report problems, track complaints, and make university life better.</p>
+                    <div class="hero-badge"><i class="fa-solid fa-sparkles"></i> Open-Source Campus Platform</div>
+                    <h1 class="hero-gradient-title">Campus<span>Care</span></h1>
+                    <h2>Raise Your Voice.<br>Improve Your Campus.</h2>
+                    <p class="hero-subtitle">A transparent, student-first platform to report campus issues, track resolutions in real-time, and hold departments accountable — all in one place.</p>
                     <div class="hero-buttons">
-                        <a href="#/login" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Raise a Complaint</a>
-                        <a href="#/login" class="btn btn-outline"><i class="fa-solid fa-search"></i> Track Complaint</a>
+                        <a href="#/register" class="btn btn-primary"><i class="fa-solid fa-rocket"></i> Get Started Free</a>
+                        <a href="#/login" class="btn btn-outline"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
                     </div>
-                    <div class="hero-stats">
-                        <div>
-                            <div class="hero-stat-number">2,500+</div>
-                            <div class="hero-stat-label">Complaints Resolved</div>
+                </div>
+
+                <!-- Glassmorphic Dashboard Mockup -->
+                <div class="hero-mockup reveal-on-scroll">
+                    <div class="mockup-window">
+                        <div class="mockup-toolbar">
+                            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                            <span class="mockup-url"><i class="fa-solid fa-lock"></i> campuscare.university.edu</span>
                         </div>
-                        <div>
-                            <div class="hero-stat-number">95%</div>
-                            <div class="hero-stat-label">Satisfaction Rate</div>
-                        </div>
-                        <div>
-                            <div class="hero-stat-number">48hr</div>
-                            <div class="hero-stat-label">Avg Resolution Time</div>
+                        <div class="mockup-body">
+                            <div class="mockup-stat-row">
+                                <div class="mockup-stat blue"><i class="fa-solid fa-file-lines"></i><div><strong>${stats.total}</strong><small>Total</small></div></div>
+                                <div class="mockup-stat amber"><i class="fa-solid fa-clock"></i><div><strong>${stats.pending}</strong><small>Pending</small></div></div>
+                                <div class="mockup-stat cyan"><i class="fa-solid fa-spinner"></i><div><strong>${stats.inProgress}</strong><small>In Progress</small></div></div>
+                                <div class="mockup-stat green"><i class="fa-solid fa-circle-check"></i><div><strong>${stats.resolved}</strong><small>Resolved</small></div></div>
+                            </div>
+                            <div class="mockup-rows">
+                                ${allComplaints.slice(0, 3).map(c => `
+                                <div class="mockup-row">
+                                    <span class="mockup-id">${c.id}</span>
+                                    <span class="mockup-title">${c.title.length > 28 ? c.title.substring(0, 28) + '…' : c.title}</span>
+                                    <span class="mockup-badge ${c.status === 'Resolved' ? 'g' : c.status === 'In Progress' ? 'b' : 'a'}">${c.status}</span>
+                                </div>`).join('')}
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
+            <!-- Live Platform Stats -->
+            <section class="live-stats-bar">
+                <div class="live-stats-inner">
+                    <div class="live-stat">
+                        <div class="live-stat-number">${stats.total}</div>
+                        <div class="live-stat-label">Complaints Filed</div>
+                    </div>
+                    <div class="live-stat-divider"></div>
+                    <div class="live-stat">
+                        <div class="live-stat-number">${stats.resolved}</div>
+                        <div class="live-stat-label">Resolved</div>
+                    </div>
+                    <div class="live-stat-divider"></div>
+                    <div class="live-stat">
+                        <div class="live-stat-number">${resolutionRate}%</div>
+                        <div class="live-stat-label">Resolution Rate</div>
+                    </div>
+                    <div class="live-stat-divider"></div>
+                    <div class="live-stat">
+                        <div class="live-stat-number">${studentCount}</div>
+                        <div class="live-stat-label">Registered Students</div>
+                    </div>
+                </div>
+                <div class="live-stats-label"><i class="fa-solid fa-signal"></i> Live Platform Data</div>
+            </section>
+
             <section class="landing-section alt-bg">
-                <div class="section-header">
+                <div class="section-header reveal-on-scroll">
+                    <div class="section-tag">Simple Process</div>
                     <h2>How It Works</h2>
                     <p>Three simple steps to get your campus issues resolved quickly and transparently.</p>
                 </div>
-                <div class="steps-grid stagger">
+                <div class="steps-grid stagger reveal-on-scroll">
                     <div class="step-card">
-                        <div class="step-number">1</div>
+                        <div class="step-icon-ring"><div class="step-number">1</div></div>
                         <h3>Submit Complaint</h3>
-                        <p>Describe your issue, select a category, and submit with supporting evidence if needed.</p>
+                        <p>Describe your issue, select a category and priority, attach evidence, and submit in under 2 minutes.</p>
                     </div>
+                    <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
                     <div class="step-card">
-                        <div class="step-number">2</div>
+                        <div class="step-icon-ring"><div class="step-number">2</div></div>
                         <h3>Track Progress</h3>
-                        <p>Monitor your complaint status in real-time as it moves through review and resolution.</p>
+                        <p>Monitor your complaint in real-time with a visual timeline as it moves through review, assignment, and resolution.</p>
                     </div>
+                    <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
                     <div class="step-card">
-                        <div class="step-number">3</div>
+                        <div class="step-icon-ring"><div class="step-number">3</div></div>
                         <h3>Get Resolution</h3>
-                        <p>Receive notifications when your complaint is resolved and provide feedback.</p>
+                        <p>Receive instant notifications when your complaint is resolved and share your feedback to help improve the system.</p>
                     </div>
                 </div>
             </section>
 
             <section class="landing-section">
-                <div class="section-header">
+                <div class="section-header reveal-on-scroll">
+                    <div class="section-tag">Campus Services</div>
                     <h2>Complaint Categories</h2>
-                    <p>Report issues across all campus departments and services.</p>
+                    <p>Report issues across every corner of your campus — from infrastructure to academics.</p>
                 </div>
-                <div class="categories-grid stagger">
+                <div class="categories-grid stagger reveal-on-scroll">
                     ${[
-                        { name: 'Hostel', icon: 'fa-building', color: '#6366f1' },
-                        { name: 'Water Supply', icon: 'fa-droplet', color: '#0ea5e9' },
-                        { name: 'Wi-Fi/Internet', icon: 'fa-wifi', color: '#8b5cf6' },
-                        { name: 'Electricity', icon: 'fa-bolt', color: '#f59e0b' },
-                        { name: 'Cleaning', icon: 'fa-broom', color: '#10b981' },
-                        { name: 'Food/Canteen', icon: 'fa-utensils', color: '#f97316' },
-                        { name: 'Classroom', icon: 'fa-chalkboard-user', color: '#ec4899' },
-                        { name: 'Transportation', icon: 'fa-bus', color: '#06b6d4' }
+                        { name: 'Hostel', icon: 'fa-building', color: '#6366f1', desc: 'Room, common areas, plumbing' },
+                        { name: 'Water Supply', icon: 'fa-droplet', color: '#0ea5e9', desc: 'Taps, purifiers, drainage' },
+                        { name: 'Wi-Fi/Internet', icon: 'fa-wifi', color: '#8b5cf6', desc: 'Connectivity, speed, access' },
+                        { name: 'Electricity', icon: 'fa-bolt', color: '#f59e0b', desc: 'Power outages, wiring, fixtures' },
+                        { name: 'Cleaning', icon: 'fa-broom', color: '#10b981', desc: 'Hygiene, waste, sanitation' },
+                        { name: 'Food/Canteen', icon: 'fa-utensils', color: '#f97316', desc: 'Quality, pricing, hygiene' },
+                        { name: 'Classroom', icon: 'fa-chalkboard-user', color: '#ec4899', desc: 'Equipment, seating, AC' },
+                        { name: 'Transportation', icon: 'fa-bus', color: '#06b6d4', desc: 'Routes, timing, safety' },
+                        { name: 'Security', icon: 'fa-shield-halved', color: '#ef4444', desc: 'Safety, access, surveillance' },
+                        { name: 'Academic', icon: 'fa-book-open', color: '#84cc16', desc: 'Exams, grades, faculty' }
                     ].map(c => `
                         <div class="category-card">
-                            <div class="category-card-icon" style="background: ${c.color}15; color: ${c.color};">
+                            <div class="category-card-icon" style="background: linear-gradient(135deg, ${c.color}18, ${c.color}08); color: ${c.color}; border: 1px solid ${c.color}20;">
                                 <i class="fa-solid ${c.icon}"></i>
                             </div>
                             <h4>${c.name}</h4>
+                            <p class="category-desc">${c.desc}</p>
                         </div>
                     `).join('')}
                 </div>
             </section>
 
             <section class="landing-section alt-bg">
-                <div class="section-header">
+                <div class="section-header reveal-on-scroll">
+                    <div class="section-tag">Platform Benefits</div>
                     <h2>Why CampusCare?</h2>
                     <p>Built for students, by students. A better way to manage campus complaints.</p>
                 </div>
-                <div class="features-grid stagger">
+                <div class="features-grid stagger reveal-on-scroll">
                     ${[
-                        { icon: 'fa-eye', title: 'Transparent Tracking', desc: 'Track every step of your complaint from submission to resolution.' },
-                        { icon: 'fa-bolt', title: 'Faster Resolution', desc: 'Automated routing to the right department for quicker fixes.' },
-                        { icon: 'fa-mobile-screen', title: 'Easy Reporting', desc: 'Submit complaints in minutes with our intuitive interface.' },
-                        { icon: 'fa-layer-group', title: 'Centralized System', desc: 'All campus complaints managed in one unified platform.' }
+                        { icon: 'fa-timeline', title: 'Real-Time Tracking', desc: 'Visual timeline for every complaint — know exactly where things stand, from submission to resolution.', color: '#3b82f6' },
+                        { icon: 'fa-bolt', title: 'Smart Routing', desc: 'Complaints are instantly routed to the right department, cutting through bureaucracy for faster action.', color: '#f59e0b' },
+                        { icon: 'fa-bell', title: 'Instant Notifications', desc: 'Get notified the moment your complaint status changes — no need to keep checking manually.', color: '#8b5cf6' },
+                        { icon: 'fa-shield-halved', title: 'Role-Based Access', desc: 'Separate student and admin portals with appropriate permissions for security and accountability.', color: '#10b981' },
+                        { icon: 'fa-chart-pie', title: 'Analytics Dashboard', desc: 'Admins get visual reports, department performance metrics, and trend analysis to improve campus services.', color: '#ec4899' },
+                        { icon: 'fa-moon', title: 'Dark Mode & Responsive', desc: 'Works beautifully on every device and supports dark mode for comfortable use day or night.', color: '#06b6d4' }
                     ].map(f => `
                         <div class="feature-card">
-                            <div class="feature-card-icon"><i class="fa-solid ${f.icon}"></i></div>
+                            <div class="feature-card-icon" style="background: ${f.color}12; color: ${f.color};">
+                                <i class="fa-solid ${f.icon}"></i>
+                            </div>
                             <h4>${f.title}</h4>
                             <p>${f.desc}</p>
                         </div>
@@ -120,21 +186,49 @@ const Views = {
                 </div>
             </section>
 
-            <footer class="landing-footer">
-                <div class="footer-logo">
-                    <div class="logo-icon" style="width:32px;height:32px;font-size:1rem;background:linear-gradient(135deg,var(--secondary-400),var(--primary-400));border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:white;">
-                        <i class="fa-solid fa-graduation-cap"></i>
+            <!-- CTA Section -->
+            <section class="cta-section">
+                <div class="cta-shapes" aria-hidden="true">
+                    <div class="cta-shape cta-shape-1"></div>
+                    <div class="cta-shape cta-shape-2"></div>
+                </div>
+                <div class="cta-content reveal-on-scroll">
+                    <h2>Ready to Make Your Campus Better?</h2>
+                    <p>Join the platform that gives every student a voice. Create your account in 30 seconds and raise your first complaint today.</p>
+                    <div class="cta-buttons">
+                        <a href="#/register" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Create Free Account</a>
+                        <a href="#/login" class="btn btn-outline"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
                     </div>
-                    <span class="logo-text">CampusCare</span>
                 </div>
-                <p>Your voice. Our responsibility.</p>
-                <div class="footer-links">
-                    <a href="#/login">Login</a>
-                    <a href="#/register">Register</a>
-                    <a href="#">Privacy Policy</a>
-                    <a href="#">Terms of Service</a>
+            </section>
+
+            <footer class="landing-footer">
+                <div class="footer-top">
+                    <div class="footer-brand">
+                        <div class="footer-logo">
+                            <div class="logo-icon" style="width:36px;height:36px;font-size:1.1rem;background:linear-gradient(135deg,var(--secondary-400),var(--primary-400));border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:white;">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </div>
+                            <span class="logo-text">CampusCare</span>
+                        </div>
+                        <p class="footer-tagline">Your voice. Our responsibility.</p>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Platform</h4>
+                        <a href="#/login">Student Login</a>
+                        <a href="#/login">Admin Login</a>
+                        <a href="#/register">Create Account</a>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Support</h4>
+                        <a href="#/login">Help Center</a>
+                        <a href="#">Privacy Policy</a>
+                        <a href="#">Terms of Service</a>
+                    </div>
                 </div>
-                <p style="margin-top: 24px; font-size: 0.75rem;">© ${new Date().getFullYear()} CampusCare. All rights reserved.</p>
+                <div class="footer-bottom">
+                    <p>© ${new Date().getFullYear()} CampusCare. All rights reserved. Built with <i class="fa-solid fa-heart" style="color:#ef4444;"></i> for students.</p>
+                </div>
             </footer>
         </div>`;
     },
