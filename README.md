@@ -1,100 +1,251 @@
-# CampusCare – University Complaint Portal 🎓
+<p align="center">
+  <img src="https://img.icons8.com/fluency/96/graduation-cap.png" alt="CampusCare Logo" width="80"/>
+</p>
 
-**CampusCare** is a modern, responsive, SaaS-style single-page web application (SPA) designed for universities and colleges to streamline student complaint submission, real-time status tracking, and administrative resolution workflows.
+<h1 align="center">🎓 CampusCare</h1>
+<h3 align="center">University Complaint Portal — Your Voice. Our Responsibility.</h3>
+
+<p align="center">
+  <a href="#-key-features"><img src="https://img.shields.io/badge/Features-20+-blue?style=for-the-badge" alt="Features"/></a>
+  <a href="#-technology-stack"><img src="https://img.shields.io/badge/Stack-HTML%20%7C%20CSS%20%7C%20JS-orange?style=for-the-badge" alt="Stack"/></a>
+  <a href="#-getting-started"><img src="https://img.shields.io/badge/Setup-2%20min-green?style=for-the-badge" alt="Setup"/></a>
+  <a href="#-license"><img src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge" alt="License"/></a>
+</p>
+
+<p align="center">
+  <b>CampusCare</b> is a modern, responsive, SaaS-style Single Page Application (SPA) designed for universities and colleges to streamline student complaint submission, real-time status tracking, and administrative resolution workflows — all from a beautiful, dark-themed UI.
+</p>
+
+---
+
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>🏠 Landing Page</b></td>
+    <td align="center"><b>🔐 Login Page</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/landing-hero.png" alt="Landing Page" width="100%"/></td>
+    <td><img src="screenshots/login-page.png" alt="Login Page" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>📊 Admin Dashboard</b></td>
+    <td align="center"><b>📋 Admin Complaints</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/admin-dashboard.png" alt="Admin Dashboard" width="100%"/></td>
+    <td><img src="screenshots/admin-complaints.png" alt="Admin Complaints" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>🎓 Student Dashboard</b></td>
+    <td align="center"><b>📝 Raise Complaint</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/student-dashboard.png" alt="Student Dashboard" width="100%"/></td>
+    <td><img src="screenshots/raise-complaint.png" alt="Raise Complaint" width="100%"/></td>
+  </tr>
+</table>
 
 ---
 
 ## ✨ Key Features
 
-### 👨‍🎓 Student Features
-- **Interactive Dashboard**: Welcome banner, quick statistics, and recent complaints overview.
-- **Complaint Submission**: Comprehensive form with category selection, location details, priority assignment, date picker, file/evidence upload support, and optional contact info.
-- **Auto-Generated Complaint IDs**: Instant ID generation in format `CMP-YYYY-NNNNN`.
-- **My Complaints**: Search bar, category filter, status filter, priority filter, and multi-field sorting (newest/oldest, priority).
-- **Complaint Details & Visual Timeline**: Detailed complaint history with a dynamic multi-step status timeline (`Submitted` → `Reviewed` → `Assigned` → `In Progress` → `Resolved`).
-- **Student Feedback**: Star rating and review system for resolved complaints.
-- **In-App Notifications**: Real-time notification system with badge count alerts for status updates and department assignments.
-- **Student Profile**: View and edit user details (Name, Course, Year, Phone).
-- **Help & Support**: Comprehensive FAQ section, complaint guidelines, and campus contact directory.
-
-### 👨‍💼 Admin Features
-- **Admin Dashboard**: Overview of key statistics, urgent alerts, and interactive CSS/SVG data charts (Status Distribution Donut Chart & Monthly Trend Bar Chart).
-- **All Complaints Management**: Filterable and sortable table listing all student complaints across campus.
-- **Complaint Resolution & Management**: Change complaint status (`Pending`, `In Progress`, `Resolved`), assign departments, alter priority levels, add internal admin notes, and write resolution messages.
-- **Urgent Complaints Monitor**: Dedicated view focusing strictly on critical and high-priority pending issues.
-- **Departments Directory**: Overview of all campus departments, assigned heads, and resolution metrics.
-- **Students Directory**: Overview of enrolled students and their complaint resolution statistics.
-- **Analytics & Reports**: Visual reports broken down by status, category, monthly trends, and department resolution rates.
-- **Settings**: Appearance toggle (Light/Dark mode), notification preferences, and data reset options.
+### 🏠 Landing Page
+| Feature | Description |
+|---------|-------------|
+| **Animated Hero Section** | Gradient titles, floating geometric shapes, and particle grid background |
+| **Glassmorphic Dashboard Mockup** | Interactive preview of the admin panel with blur effects |
+| **Live Platform Stats** | Real-time counters from actual system data (complaints, resolved, categories) |
+| **How It Works** | Animated step-by-step process with connector lines |
+| **Complaint Categories** | Visual grid showcasing all 10+ complaint categories |
+| **Why CampusCare** | Feature highlights with animated cards |
+| **Scroll Reveal Animations** | Elements fade in on scroll using IntersectionObserver |
+| **🌓 Light / Dark Mode** | Theme toggle on the landing page navbar |
 
 ---
 
-## 🎨 Design System & UX
+### 👨‍🎓 Student Portal
 
-- **Color Palette**: Deep Blue (`#1a365d`), Teal/Cyan (`#0d9488`), Success Green (`#22c55e`), Warning Amber (`#f59e0b`), and Urgent Red (`#ef4444`).
-- **Responsive Layout**: Sidebar + Header for desktop, collapsible drawer overlay and card-based table transformations for mobile and tablet screens.
-- **Theme**: Dark/Light mode support with CSS custom properties.
-- **Data Persistence**: Powered by `localStorage` for offline-first demo persistence.
+| Feature | Description |
+|---------|-------------|
+| **Interactive Dashboard** | Welcome banner, quick stats cards, and recent complaints overview |
+| **Raise Complaint** | Full form with category, location, priority, date, file upload, and contact info |
+| **Auto-Generated IDs** | Instant complaint ID in format `CMP-YYYY-NNNNN` |
+| **My Complaints** | Search, filter (category/status/priority), and sort (newest, oldest, priority) |
+| **Visual Timeline** | Multi-step status tracker: `Submitted → Reviewed → Assigned → In Progress → Resolved` |
+| **Feedback System** | ⭐ Star rating + written review for resolved complaints |
+| **Notifications** | Real-time badge alerts for status changes and department assignments |
+| **Profile Management** | Edit name, course, year, phone, and change password |
+| **Help & Support** | FAQ section, complaint guidelines, and campus contact directory |
+
+---
+
+### 🛡️ Admin Portal
+
+| Feature | Description |
+|---------|-------------|
+| **Admin Dashboard** | Overview stats, donut chart (status distribution), bar chart (monthly trends) |
+| **All Complaints** | Filterable & sortable table with status badges and quick actions |
+| **Complaint Management** | Change status, assign department, alter priority, add notes, write resolution |
+| **Urgent Monitor** | Dedicated view for critical/high-priority pending issues |
+| **Departments** | Directory of all campus departments with resolution metrics |
+| **Students** | Student directory with complaint statistics |
+| **Analytics & Reports** | Visual reports by status, category, monthly trends, and department resolution rates |
+| **Settings** | Theme toggle (Light/Dark), notification preferences, data reset |
+
+---
+
+## 🔐 Authentication
+
+CampusCare uses a secure, role-based authentication system:
+
+### 🛡️ Admin Login
+| Field | Value |
+|-------|-------|
+| **Username** | `admin` |
+| **Password** | `Spsu@2011` |
+
+### 🎓 Student Login
+Students register their own accounts via the **Register** page. Fill in:
+- Full Name, Student ID, Email, Password
+- Phone, Course, Year (optional)
+
+> **Note**: No demo/fake credentials are used. Students must register to access the portal.
+
+### Authentication Features
+- ✅ Role-based access control (Student vs Admin routes)
+- ✅ Route guards — unauthorized access redirects to login
+- ✅ Session persistence via localStorage
+- ✅ Password visibility toggle
+- ✅ Profile editing with password change support
+
+---
+
+## 🎨 Design System
+
+| Element | Details |
+|---------|---------|
+| **Theme** | Dark mode (default) + Light mode with CSS custom properties |
+| **Colors** | Deep Blue `#1a365d` · Teal `#0d9488` · Green `#22c55e` · Amber `#f59e0b` · Red `#ef4444` |
+| **Typography** | [Inter](https://fonts.google.com/specimen/Inter) via Google Fonts |
+| **Icons** | [Font Awesome 6](https://fontawesome.com/) |
+| **Layout** | Sidebar + Header (desktop) · Collapsible drawer (mobile/tablet) |
+| **Animations** | CSS transitions, scroll-reveal, floating shapes, gradient animations |
+| **Charts** | Pure CSS/SVG donut charts and bar charts (zero dependencies) |
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: HTML5, Vanilla CSS3, JavaScript (ES6+)
-- **Architecture**: Single Page Application (SPA) with Hash Routing
-- **Icons**: Font Awesome 6
-- **Typography**: Google Fonts (Inter)
-- **Data Layer**: Web Storage API (`localStorage`)
+| Layer | Technology |
+|-------|------------|
+| **Structure** | HTML5 (Semantic) |
+| **Styling** | Vanilla CSS3 (Custom Properties, Grid, Flexbox, Animations) |
+| **Logic** | JavaScript ES6+ (Modules, Classes, IntersectionObserver) |
+| **Architecture** | Single Page Application with Hash-based Routing |
+| **Data Layer** | Web Storage API (`localStorage`) with auto-migration versioning |
+| **Icons** | Font Awesome 6 CDN |
+| **Fonts** | Google Fonts (Inter) |
+| **Hosting** | Any static server (no build step required) |
 
----
-
-## 🔑 Demo Credentials
-
-### 🎓 Student Login
-- **Email**: `student@university.edu`
-- **Password**: `student123`
-
-### 🛡️ Admin Login
-- **Email**: `admin@university.edu`
-- **Password**: `admin123`
+> **Zero dependencies. No frameworks. No build tools. Just open and run.**
 
 ---
 
 ## 🚀 Getting Started
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/shrutiyadav-ai/CampusCare.git
-   cd CampusCare
-   ```
+### Prerequisites
+- Any modern web browser (Chrome, Firefox, Edge, Safari)
+- (Optional) A static file server for local development
 
-2. **Run locally**:
-   Simply open `index.html` in any web browser, or serve using any static web server (e.g. VS Code Live Server, `npx http-server`, `python -m http.server`).
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/shrutiyadav-ai/CampusCare.git
+
+# 2. Navigate to the project
+cd CampusCare
+
+# 3. Open in browser (choose one)
+# Option A: Direct file open
+start index.html          # Windows
+open index.html           # macOS
+xdg-open index.html       # Linux
+
+# Option B: Local server (recommended)
+npx http-server -p 8080   # Node.js
+python -m http.server 8080 # Python
+```
+
+Then visit **http://localhost:8080** in your browser.
 
 ---
 
-## 📄 Project Structure
+## 📁 Project Structure
 
-```text
-CampusCare/
-├── index.html            # SPA Entry Point & HTML Shell
-├── README.md             # Documentation
-├── css/
-│   └── style.css         # Complete Design System & Component Styles
-└── js/
-    ├── app.js            # Router, Init & Event Delegation
-    ├── auth.js           # Authentication & Session Management
-    ├── complaints.js     # Complaint CRUD, Filters & Search Logic
-    ├── admin.js          # Admin Actions & Data Aggregations
-    ├── notifications.js  # Notification Engine
-    ├── charts.js         # SVG/CSS Chart Renderers
-    ├── data.js           # Data Storage & Pre-seeded Sample Data
-    ├── utils.js          # Toasts, Modals, Validation & Formatting
-    └── views.js          # Component Views & HTML Templates
 ```
+CampusCare/
+├── 📄 index.html              # SPA entry point & HTML shell
+├── 📄 README.md               # This documentation
+│
+├── 🎨 css/
+│   └── style.css              # Complete design system & component styles
+│                                 (3000+ lines: tokens, layouts, animations)
+│
+├── ⚙️ js/
+│   ├── app.js                 # Router, initialization & event delegation
+│   ├── auth.js                # Authentication & session management
+│   ├── complaints.js          # Complaint CRUD, filters & search logic
+│   ├── admin.js               # Admin actions & data aggregations
+│   ├── notifications.js       # Notification engine
+│   ├── charts.js              # Pure CSS/SVG chart renderers
+│   ├── data.js                # Data storage, seeding & auto-migration
+│   ├── utils.js               # Toasts, modals, validation & formatting
+│   └── views.js               # All component views & HTML templates
+│
+└── 📸 screenshots/            # App screenshots for README
+    ├── landing-hero.png
+    ├── landing-features.png
+    ├── login-page.png
+    ├── admin-dashboard.png
+    ├── admin-complaints.png
+    ├── student-dashboard.png
+    └── raise-complaint.png
+```
+
+---
+
+## 🔄 Data Management
+
+CampusCare uses `localStorage` for offline-first data persistence:
+
+- **Auto-Seeding**: Sample complaints and departments are pre-loaded on first visit
+- **Version Migration**: Data schema versioning ensures smooth upgrades — old credentials are automatically replaced when a new version is deployed
+- **Reset Option**: Admins can reset all data from `Settings → Data Management → Reset`
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Commit** your changes: `git commit -m 'Add amazing feature'`
+4. **Push** to the branch: `git push origin feature/amazing-feature`
+5. **Open** a Pull Request
 
 ---
 
 ## 📜 License
 
-MIT License © 2026 CampusCare
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<p align="center">
+  Made with ❤️ for better campus life<br/>
+  <b>CampusCare</b> © 2026
+</p>
