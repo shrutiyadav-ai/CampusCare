@@ -4,14 +4,15 @@
    ============================================================ */
 
 const Auth = {
-    login(email, password) {
+    login(identifier, password) {
         const users = DataStore.get(DataStore.KEYS.USERS) || [];
+        const input = identifier.toLowerCase();
         const user = users.find(u =>
-            u.email.toLowerCase() === email.toLowerCase() && u.password === password
+            (u.email.toLowerCase() === input) && u.password === password
         );
 
         if (!user) {
-            return { success: false, message: 'Invalid email or password. Please try again.' };
+            return { success: false, message: 'Invalid credentials. Please check your email/username and password.' };
         }
 
         // Save session (exclude password)

@@ -177,15 +177,6 @@ const App = {
             return;
         }
 
-        // Demo login buttons
-        if (e.target.closest('.demo-login-btn')) {
-            const btn = e.target.closest('.demo-login-btn');
-            const email = btn.dataset.email;
-            const password = btn.dataset.password;
-            this.performLogin(email, password);
-            return;
-        }
-
         // Sidebar toggle
         if (e.target.closest('#hamburger-btn')) {
             const sidebar = document.getElementById('sidebar');

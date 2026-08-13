@@ -12,8 +12,12 @@ const DataStore = {
         CURRENT_USER: 'cc_current_user',
         COUNTER: 'cc_complaint_counter',
         THEME: 'cc_theme',
-        SETTINGS: 'cc_settings'
+        SETTINGS: 'cc_settings',
+        DATA_VERSION: 'cc_data_version'
     },
+
+    // Bump this to force re-seed of users on next load
+    CURRENT_VERSION: 2,
 
     // ── localStorage helpers ────────────────────────────
     get(key) {
@@ -36,6 +40,15 @@ const DataStore = {
 
     // ── Initialization ──────────────────────────────────
     init() {
+        const storedVersion = this.get(this.KEYS.DATA_VERSION) || 0;
+
+        // Re-seed users when version changes (clears old demo credentials)
+        if (storedVersion < this.CURRENT_VERSION) {
+            this.set(this.KEYS.USERS, this.getDefaultUsers());
+            this.set(this.KEYS.CURRENT_USER, null); // force re-login
+            this.set(this.KEYS.DATA_VERSION, this.CURRENT_VERSION);
+        }
+
         if (!this.get(this.KEYS.USERS)) {
             this.set(this.KEYS.USERS, this.getDefaultUsers());
         }
@@ -70,8 +83,8 @@ const DataStore = {
             {
                 id: 'STU001',
                 name: 'Rahul Sharma',
-                email: 'student@university.edu',
-                password: 'student123',
+                email: 'rahul@university.edu',
+                password: 'Rahul@2026',
                 phone: '+91 98765 43210',
                 course: 'B.Tech Computer Science',
                 year: '3rd Year',
@@ -83,7 +96,7 @@ const DataStore = {
                 id: 'STU002',
                 name: 'Priya Patel',
                 email: 'priya@university.edu',
-                password: 'priya123',
+                password: 'Priya@2026',
                 phone: '+91 98765 43211',
                 course: 'B.Tech Electronics',
                 year: '2nd Year',
@@ -95,7 +108,7 @@ const DataStore = {
                 id: 'STU003',
                 name: 'Amit Kumar',
                 email: 'amit@university.edu',
-                password: 'amit123',
+                password: 'Amit@2026',
                 phone: '+91 98765 43212',
                 course: 'MBA',
                 year: '1st Year',
@@ -105,14 +118,14 @@ const DataStore = {
             },
             {
                 id: 'ADM001',
-                name: 'Dr. Anjali Verma',
-                email: 'admin@university.edu',
-                password: 'admin123',
-                phone: '+91 98765 00001',
+                name: 'Admin',
+                email: 'admin',
+                password: 'Spsu@2011',
+                phone: '',
                 course: '',
                 year: '',
                 role: 'admin',
-                avatar: 'AV',
+                avatar: 'AD',
                 createdAt: '2023-01-01T10:00:00'
             }
         ];

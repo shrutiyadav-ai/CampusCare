@@ -253,8 +253,8 @@ const Views = {
 
                 <form id="login-form" novalidate>
                     <div class="form-group">
-                        <label class="form-label" for="login-email">Email / Student ID <span class="required">*</span></label>
-                        <input type="text" id="login-email" class="form-input" placeholder="Enter your email or Student ID" autocomplete="username" required>
+                        <label class="form-label" for="login-email">Email / Username <span class="required">*</span></label>
+                        <input type="text" id="login-email" class="form-input" placeholder="Enter your email or username" autocomplete="username" required>
                         <div class="form-error" id="login-email-error" style="display:none;"></div>
                     </div>
 
@@ -281,17 +281,6 @@ const Views = {
                         <i class="fa-solid fa-right-to-bracket"></i> Login
                     </button>
                 </form>
-
-                <div class="auth-divider"><span>Demo Accounts</span></div>
-
-                <div class="btn-group" style="flex-direction:column;">
-                    <button class="btn btn-outline btn-sm demo-login-btn" data-email="student@university.edu" data-password="student123">
-                        <i class="fa-solid fa-user-graduate"></i> Login as Student
-                    </button>
-                    <button class="btn btn-outline btn-sm demo-login-btn" data-email="admin@university.edu" data-password="admin123">
-                        <i class="fa-solid fa-user-shield"></i> Login as Admin
-                    </button>
-                </div>
 
                 <div class="auth-footer">
                     Don't have an account? <a href="#/register">Register here</a>
@@ -1696,7 +1685,7 @@ const Views = {
                     <h3>Data Management</h3>
                     <div class="setting-row">
                         <div class="setting-info">
-                            <h4>Reset Demo Data</h4>
+                            <h4>Reset Data</h4>
                             <p>Clear all data and restore sample complaints</p>
                         </div>
                         <button class="btn btn-danger btn-sm" data-action="reset-data">
