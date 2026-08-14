@@ -101,10 +101,16 @@
 CampusCare uses a secure, role-based authentication system:
 
 ### 🛡️ Admin Login
+
+<details>
+<summary>🔑 View Admin Credentials</summary>
+
 | Field | Value |
 |-------|-------|
 | **Username** | `admin` |
 | **Password** | `Spsu@2011` |
+
+</details>
 
 ### 🎓 Student Login
 Students register their own accounts via the **Register** page. Fill in:
