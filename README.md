@@ -6,6 +6,7 @@
 <h3 align="center">University Complaint Portal — Your Voice. Our Responsibility.</h3>
 
 <p align="center">
+  <a href="https://campus-care-umber-six.vercel.app/"><img src="https://img.shields.io/badge/Live%20Demo-Vercel-brightgreen?style=for-the-badge&logo=vercel" alt="Live Demo"/></a>
   <a href="#-key-features"><img src="https://img.shields.io/badge/Features-20+-blue?style=for-the-badge" alt="Features"/></a>
   <a href="#-technology-stack"><img src="https://img.shields.io/badge/Stack-HTML%20%7C%20CSS%20%7C%20JS-orange?style=for-the-badge" alt="Stack"/></a>
   <a href="#-getting-started"><img src="https://img.shields.io/badge/Setup-2%20min-green?style=for-the-badge" alt="Setup"/></a>
@@ -14,6 +15,8 @@
 
 <p align="center">
   <b>CampusCare</b> is a modern, responsive, SaaS-style Single Page Application (SPA) designed for universities and colleges to streamline student complaint submission, real-time status tracking, and administrative resolution workflows — all from a beautiful, dark-themed UI.
+  <br/><br/>
+  🚀 <b><a href="https://campus-care-umber-six.vercel.app/">Try the Live Demo</a></b>
 </p>
 
 ---
@@ -186,6 +189,8 @@ python -m http.server 8080 # Python
 ```
 
 Then visit **http://localhost:8080** in your browser.
+
+Or skip the local setup and explore the **[Live Demo on Vercel](https://campus-care-umber-six.vercel.app/)**.
 
 ---
 
