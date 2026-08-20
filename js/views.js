@@ -18,186 +18,184 @@ const Views = {
 
         return `
         <div class="landing-page">
-            <nav class="landing-nav">
+            <!-- Navigation Bar -->
+            <nav class="landing-nav" id="landing-nav">
                 <div class="landing-nav-logo">
                     <div class="logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
                     <span class="logo-text">CampusCare</span>
                 </div>
-                <div class="landing-nav-links">
-                    <button class="header-icon-btn theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
-                        <i class="fa-solid ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>
-                    </button>
-                    <a href="#/login" class="btn btn-outline btn-sm">Login</a>
-                    <a href="#/register" class="btn btn-primary btn-sm">Get Started</a>
+                <div class="landing-nav-links" id="landing-nav-links">
+                    <a href="#/" class="nav-link active" onclick="event.preventDefault(); document.getElementById('hero')?.scrollIntoView({behavior:'smooth'})">Home</a>
+                    <a href="#how-it-works" class="nav-link" onclick="event.preventDefault(); document.getElementById('how-it-works')?.scrollIntoView({behavior:'smooth'})">How It Works</a>
+                    <a href="#categories" class="nav-link" onclick="event.preventDefault(); document.getElementById('categories')?.scrollIntoView({behavior:'smooth'})">Categories</a>
+                    <a href="#about" class="nav-link" onclick="event.preventDefault(); document.getElementById('about')?.scrollIntoView({behavior:'smooth'})">About</a>
+                    <a href="#/login" class="btn btn-outline btn-sm nav-login-btn">Login</a>
                 </div>
+                <button class="landing-hamburger" id="landing-hamburger" aria-label="Open menu" onclick="document.getElementById('landing-nav-links').classList.toggle('open'); this.classList.toggle('active');">
+                    <span></span><span></span><span></span>
+                </button>
             </nav>
 
-            <section class="hero-section">
-                <!-- Floating animated shapes -->
-                <div class="hero-floating-shapes" aria-hidden="true">
-                    <div class="floating-shape shape-1"></div>
-                    <div class="floating-shape shape-2"></div>
-                    <div class="floating-shape shape-3"></div>
-                    <div class="floating-shape shape-4"></div>
-                    <div class="floating-shape shape-5"></div>
-                </div>
-
-                <div class="hero-content">
-                    <div class="hero-badge"><i class="fa-solid fa-sparkles"></i> Open-Source Campus Platform</div>
-                    <h1 class="hero-gradient-title">Campus<span>Care</span></h1>
-                    <h2>Raise Your Voice.<br>Improve Your Campus.</h2>
-                    <p class="hero-subtitle">A transparent, student-first platform to report campus issues, track resolutions in real-time, and hold departments accountable — all in one place.</p>
-                    <div class="hero-buttons">
-                        <a href="#/register" class="btn btn-primary"><i class="fa-solid fa-rocket"></i> Get Started Free</a>
-                        <a href="#/login" class="btn btn-outline"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
-                    </div>
-                </div>
-
-                <!-- Glassmorphic Dashboard Mockup -->
-                <div class="hero-mockup reveal-on-scroll">
-                    <div class="mockup-window">
-                        <div class="mockup-toolbar">
-                            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-                            <span class="mockup-url"><i class="fa-solid fa-lock"></i> campuscare.university.edu</span>
+            <!-- Hero Section -->
+            <section class="hero-section" id="hero">
+                <div class="hero-inner">
+                    <div class="hero-text reveal-on-scroll">
+                        <h1>Raise Your Voice.<br>Improve Your Campus.</h1>
+                        <p class="hero-subtitle">A simple and transparent platform for students to report campus issues, track complaints, and stay informed about their resolution.</p>
+                        <div class="hero-buttons">
+                            <a href="#/register" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Raise a Complaint</a>
+                            <a href="#/login" class="btn btn-outline"><i class="fa-solid fa-magnifying-glass"></i> Track Complaint</a>
                         </div>
-                        <div class="mockup-body">
-                            <div class="mockup-stat-row">
-                                <div class="mockup-stat blue"><i class="fa-solid fa-file-lines"></i><div><strong>${stats.total}</strong><small>Total</small></div></div>
-                                <div class="mockup-stat amber"><i class="fa-solid fa-clock"></i><div><strong>${stats.pending}</strong><small>Pending</small></div></div>
-                                <div class="mockup-stat cyan"><i class="fa-solid fa-spinner"></i><div><strong>${stats.inProgress}</strong><small>In Progress</small></div></div>
-                                <div class="mockup-stat green"><i class="fa-solid fa-circle-check"></i><div><strong>${stats.resolved}</strong><small>Resolved</small></div></div>
+                    </div>
+                    <div class="hero-visual reveal-on-scroll">
+                        <div class="mockup-card">
+                            <div class="mockup-card-header">
+                                <span class="mockup-dot"></span>
+                                <span class="mockup-dot"></span>
+                                <span class="mockup-dot"></span>
+                                <span class="mockup-card-title">Dashboard Overview</span>
                             </div>
-                            <div class="mockup-rows">
-                                ${allComplaints.slice(0, 3).map(c => `
-                                <div class="mockup-row">
-                                    <span class="mockup-id">${c.id}</span>
-                                    <span class="mockup-title">${c.title.length > 28 ? c.title.substring(0, 28) + '…' : c.title}</span>
-                                    <span class="mockup-badge ${c.status === 'Resolved' ? 'g' : c.status === 'In Progress' ? 'b' : 'a'}">${c.status}</span>
-                                </div>`).join('')}
+                            <div class="mockup-card-body">
+                                <div class="mockup-status-item submitted">
+                                    <div class="mockup-status-icon"><i class="fa-solid fa-paper-plane"></i></div>
+                                    <div class="mockup-status-info">
+                                        <span class="mockup-status-label">Complaint Submitted</span>
+                                        <span class="mockup-status-count">${stats.total} total</span>
+                                    </div>
+                                    <span class="mockup-status-badge pending-badge">${stats.pending} pending</span>
+                                </div>
+                                <div class="mockup-status-item in-progress">
+                                    <div class="mockup-status-icon"><i class="fa-solid fa-arrows-rotate"></i></div>
+                                    <div class="mockup-status-info">
+                                        <span class="mockup-status-label">In Progress</span>
+                                        <span class="mockup-status-count">Being reviewed</span>
+                                    </div>
+                                    <span class="mockup-status-badge progress-badge">${stats.inProgress} active</span>
+                                </div>
+                                <div class="mockup-status-item resolved">
+                                    <div class="mockup-status-icon"><i class="fa-solid fa-circle-check"></i></div>
+                                    <div class="mockup-status-info">
+                                        <span class="mockup-status-label">Resolved</span>
+                                        <span class="mockup-status-count">Successfully closed</span>
+                                    </div>
+                                    <span class="mockup-status-badge resolved-badge">${stats.resolved} done</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Live Platform Stats -->
-            <section class="live-stats-bar">
-                <div class="live-stats-inner">
-                    <div class="live-stat">
-                        <div class="live-stat-number">${stats.total}</div>
-                        <div class="live-stat-label">Complaints Filed</div>
+            <!-- Statistics Section -->
+            <section class="stats-section">
+                <div class="stats-inner reveal-on-scroll">
+                    <div class="stat-item">
+                        <div class="stat-number">1,250+</div>
+                        <div class="stat-label">Complaints Resolved</div>
                     </div>
-                    <div class="live-stat-divider"></div>
-                    <div class="live-stat">
-                        <div class="live-stat-number">${stats.resolved}</div>
-                        <div class="live-stat-label">Resolved</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">98%</div>
+                        <div class="stat-label">Student Satisfaction</div>
                     </div>
-                    <div class="live-stat-divider"></div>
-                    <div class="live-stat">
-                        <div class="live-stat-number">${resolutionRate}%</div>
-                        <div class="live-stat-label">Resolution Rate</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">Complaint Tracking</div>
                     </div>
-                    <div class="live-stat-divider"></div>
-                    <div class="live-stat">
-                        <div class="live-stat-number">${studentCount}</div>
-                        <div class="live-stat-label">Registered Students</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">10+</div>
+                        <div class="stat-label">Campus Departments</div>
                     </div>
                 </div>
-                <div class="live-stats-label"><i class="fa-solid fa-signal"></i> Live Platform Data</div>
             </section>
 
-            <section class="landing-section alt-bg">
+            <!-- How It Works -->
+            <section class="landing-section" id="how-it-works">
                 <div class="section-header reveal-on-scroll">
-                    <div class="section-tag">Simple Process</div>
                     <h2>How It Works</h2>
-                    <p>Three simple steps to get your campus issues resolved quickly and transparently.</p>
+                    <p>Three simple steps to get your campus issues resolved.</p>
                 </div>
-                <div class="steps-grid stagger reveal-on-scroll">
+                <div class="steps-grid reveal-on-scroll">
                     <div class="step-card">
-                        <div class="step-icon-ring"><div class="step-number">1</div></div>
-                        <h3>Submit Complaint</h3>
-                        <p>Describe your issue, select a category and priority, attach evidence, and submit in under 2 minutes.</p>
+                        <div class="step-icon-wrap"><i class="fa-solid fa-pen-to-square"></i></div>
+                        <div class="step-label">01 — Submit</div>
+                        <p>Report your campus issue using a simple complaint form.</p>
                     </div>
-                    <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
                     <div class="step-card">
-                        <div class="step-icon-ring"><div class="step-number">2</div></div>
-                        <h3>Track Progress</h3>
-                        <p>Monitor your complaint in real-time with a visual timeline as it moves through review, assignment, and resolution.</p>
+                        <div class="step-icon-wrap"><i class="fa-solid fa-chart-line"></i></div>
+                        <div class="step-label">02 — Track</div>
+                        <p>Monitor your complaint status in real time.</p>
                     </div>
-                    <div class="step-connector"><i class="fa-solid fa-arrow-right"></i></div>
                     <div class="step-card">
-                        <div class="step-icon-ring"><div class="step-number">3</div></div>
-                        <h3>Get Resolution</h3>
-                        <p>Receive instant notifications when your complaint is resolved and share your feedback to help improve the system.</p>
+                        <div class="step-icon-wrap"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="step-label">03 — Resolve</div>
+                        <p>Receive updates when your issue is addressed.</p>
                     </div>
                 </div>
             </section>
 
-            <section class="landing-section">
+            <!-- Complaint Categories -->
+            <section class="landing-section section-light-bg" id="categories">
                 <div class="section-header reveal-on-scroll">
-                    <div class="section-tag">Campus Services</div>
                     <h2>Complaint Categories</h2>
-                    <p>Report issues across every corner of your campus — from infrastructure to academics.</p>
+                    <p>Report issues across every corner of your campus.</p>
                 </div>
                 <div class="categories-grid stagger reveal-on-scroll">
                     ${[
-                        { name: 'Hostel', icon: 'fa-building', color: '#6366f1', desc: 'Room, common areas, plumbing' },
-                        { name: 'Water Supply', icon: 'fa-droplet', color: '#0ea5e9', desc: 'Taps, purifiers, drainage' },
-                        { name: 'Wi-Fi/Internet', icon: 'fa-wifi', color: '#8b5cf6', desc: 'Connectivity, speed, access' },
-                        { name: 'Electricity', icon: 'fa-bolt', color: '#f59e0b', desc: 'Power outages, wiring, fixtures' },
-                        { name: 'Cleaning', icon: 'fa-broom', color: '#10b981', desc: 'Hygiene, waste, sanitation' },
-                        { name: 'Food/Canteen', icon: 'fa-utensils', color: '#f97316', desc: 'Quality, pricing, hygiene' },
-                        { name: 'Classroom', icon: 'fa-chalkboard-user', color: '#ec4899', desc: 'Equipment, seating, AC' },
-                        { name: 'Transportation', icon: 'fa-bus', color: '#06b6d4', desc: 'Routes, timing, safety' },
-                        { name: 'Security', icon: 'fa-shield-halved', color: '#ef4444', desc: 'Safety, access, surveillance' },
-                        { name: 'Academic', icon: 'fa-book-open', color: '#84cc16', desc: 'Exams, grades, faculty' }
+                        { name: 'Hostel', emoji: '🏠' },
+                        { name: 'Water Supply', emoji: '💧' },
+                        { name: 'Wi-Fi', emoji: '📶' },
+                        { name: 'Electricity', emoji: '⚡' },
+                        { name: 'Cleaning', emoji: '🧹' },
+                        { name: 'Canteen', emoji: '🍽️' },
+                        { name: 'Classroom', emoji: '🏫' },
+                        { name: 'Transport', emoji: '🚌' }
                     ].map(c => `
                         <div class="category-card">
-                            <div class="category-card-icon" style="background: linear-gradient(135deg, ${c.color}18, ${c.color}08); color: ${c.color}; border: 1px solid ${c.color}20;">
-                                <i class="fa-solid ${c.icon}"></i>
-                            </div>
+                            <div class="category-emoji">${c.emoji}</div>
                             <h4>${c.name}</h4>
-                            <p class="category-desc">${c.desc}</p>
                         </div>
                     `).join('')}
                 </div>
             </section>
 
-            <section class="landing-section alt-bg">
+            <!-- Why CampusCare -->
+            <section class="landing-section" id="about">
                 <div class="section-header reveal-on-scroll">
-                    <div class="section-tag">Platform Benefits</div>
                     <h2>Why CampusCare?</h2>
-                    <p>Built for students, by students. A better way to manage campus complaints.</p>
+                    <p>Built for students. Designed for impact.</p>
                 </div>
                 <div class="features-grid stagger reveal-on-scroll">
-                    ${[
-                        { icon: 'fa-timeline', title: 'Real-Time Tracking', desc: 'Visual timeline for every complaint — know exactly where things stand, from submission to resolution.', color: '#3b82f6' },
-                        { icon: 'fa-bolt', title: 'Smart Routing', desc: 'Complaints are instantly routed to the right department, cutting through bureaucracy for faster action.', color: '#f59e0b' },
-                        { icon: 'fa-bell', title: 'Instant Notifications', desc: 'Get notified the moment your complaint status changes — no need to keep checking manually.', color: '#8b5cf6' },
-                        { icon: 'fa-shield-halved', title: 'Role-Based Access', desc: 'Separate student and admin portals with appropriate permissions for security and accountability.', color: '#10b981' },
-                        { icon: 'fa-chart-pie', title: 'Analytics Dashboard', desc: 'Admins get visual reports, department performance metrics, and trend analysis to improve campus services.', color: '#ec4899' },
-                        { icon: 'fa-moon', title: 'Dark Mode & Responsive', desc: 'Works beautifully on every device and supports dark mode for comfortable use day or night.', color: '#06b6d4' }
-                    ].map(f => `
-                        <div class="feature-card">
-                            <div class="feature-card-icon" style="background: ${f.color}12; color: ${f.color};">
-                                <i class="fa-solid ${f.icon}"></i>
-                            </div>
-                            <h4>${f.title}</h4>
-                            <p>${f.desc}</p>
-                        </div>
-                    `).join('')}
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-eye"></i></div>
+                        <h4>Transparent Tracking</h4>
+                        <p>Students can see exactly where their complaint stands.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-bolt"></i></div>
+                        <h4>Faster Resolution</h4>
+                        <p>Complaints are organized and assigned to the appropriate department.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-file-pen"></i></div>
+                        <h4>Easy Reporting</h4>
+                        <p>Submit a complaint in just a few simple steps.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-building-columns"></i></div>
+                        <h4>Better Campus</h4>
+                        <p>Help the university identify recurring issues and improve student life.</p>
+                    </div>
                 </div>
             </section>
 
             <!-- CTA Section -->
             <section class="cta-section">
-                <div class="cta-shapes" aria-hidden="true">
-                    <div class="cta-shape cta-shape-1"></div>
-                    <div class="cta-shape cta-shape-2"></div>
-                </div>
                 <div class="cta-content reveal-on-scroll">
                     <h2>Ready to Make Your Campus Better?</h2>
-                    <p>Join the platform that gives every student a voice. Create your account in 30 seconds and raise your first complaint today.</p>
+                    <p>Join the platform that gives every student a voice. Create your account and raise your first complaint today.</p>
                     <div class="cta-buttons">
                         <a href="#/register" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Create Free Account</a>
                         <a href="#/login" class="btn btn-outline"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
@@ -205,32 +203,33 @@ const Views = {
                 </div>
             </section>
 
+            <!-- Footer -->
             <footer class="landing-footer">
-                <div class="footer-top">
+                <div class="footer-inner">
                     <div class="footer-brand">
                         <div class="footer-logo">
-                            <div class="logo-icon" style="width:36px;height:36px;font-size:1.1rem;background:linear-gradient(135deg,var(--secondary-400),var(--primary-400));border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:white;">
-                                <i class="fa-solid fa-graduation-cap"></i>
-                            </div>
+                            <div class="logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
                             <span class="logo-text">CampusCare</span>
                         </div>
                         <p class="footer-tagline">Your voice. Our responsibility.</p>
                     </div>
-                    <div class="footer-col">
-                        <h4>Platform</h4>
-                        <a href="#/login">Student Login</a>
-                        <a href="#/login">Admin Login</a>
-                        <a href="#/register">Create Account</a>
-                    </div>
-                    <div class="footer-col">
-                        <h4>Support</h4>
-                        <a href="#/login">Help Center</a>
-                        <a href="#">Privacy Policy</a>
-                        <a href="#">Terms of Service</a>
+                    <div class="footer-links">
+                        <div class="footer-col">
+                            <h4>Platform</h4>
+                            <a href="#/login">Student Login</a>
+                            <a href="#/login">Admin Login</a>
+                            <a href="#/register">Create Account</a>
+                        </div>
+                        <div class="footer-col">
+                            <h4>Support</h4>
+                            <a href="#/login">Help Center</a>
+                            <a href="#">Privacy Policy</a>
+                            <a href="#">Terms of Service</a>
+                        </div>
                     </div>
                 </div>
                 <div class="footer-bottom">
-                    <p>© ${new Date().getFullYear()} CampusCare. All rights reserved. Built with <i class="fa-solid fa-heart" style="color:#ef4444;"></i> for students.</p>
+                    <p>© ${new Date().getFullYear()} CampusCare. All rights reserved.</p>
                 </div>
             </footer>
         </div>`;
