@@ -8,31 +8,39 @@ window.supabaseInitPromise = (async () => {
     let url = null;
     let key = null;
 
-    try {
-        // Try to fetch credentials from the local .env file with a cache-busting query parameter
-        const response = await fetch('/.env?t=' + Date.now());
-        if (response.ok) {
-            const text = await response.text();
-            const lines = text.split('\n');
-            lines.forEach(line => {
-                const cleanLine = line.trim();
-                if (!cleanLine || cleanLine.startsWith('#')) return;
-                
-                const parts = cleanLine.split('=');
-                if (parts.length >= 2) {
-                    const k = parts[0].trim();
-                    const v = parts.slice(1).join('=').trim();
-                    if (k === 'SUPABASE_URL' || k === 'VITE_SUPABASE_URL') {
-                        url = v;
+    // 1. Try to read from window.ENV (injected at build time in production)
+    if (window.ENV && window.ENV.SUPABASE_URL && window.ENV.SUPABASE_ANON_KEY) {
+        url = window.ENV.SUPABASE_URL;
+        key = window.ENV.SUPABASE_ANON_KEY;
+    }
+
+    // 2. Local Fallback: Try to fetch credentials from the local .env file
+    if (!url || !key) {
+        try {
+            const response = await fetch('/.env?t=' + Date.now());
+            if (response.ok) {
+                const text = await response.text();
+                const lines = text.split('\n');
+                lines.forEach(line => {
+                    const cleanLine = line.trim();
+                    if (!cleanLine || cleanLine.startsWith('#')) return;
+                    
+                    const parts = cleanLine.split('=');
+                    if (parts.length >= 2) {
+                        const k = parts[0].trim();
+                        const v = parts.slice(1).join('=').trim();
+                        if (k === 'SUPABASE_URL' || k === 'VITE_SUPABASE_URL') {
+                            url = v;
+                        }
+                        if (k === 'SUPABASE_ANON_KEY' || k === 'SUPABASE_PUBLISHABLE_KEY' || k === 'VITE_SUPABASE_PUBLISHABLE_KEY' || k === 'VITE_SUPABASE_ANON_KEY') {
+                            key = v;
+                        }
                     }
-                    if (k === 'SUPABASE_ANON_KEY' || k === 'SUPABASE_PUBLISHABLE_KEY' || k === 'VITE_SUPABASE_PUBLISHABLE_KEY' || k === 'VITE_SUPABASE_ANON_KEY') {
-                        key = v;
-                    }
-                }
-            });
+                });
+            }
+        } catch (err) {
+            console.warn('Could not fetch .env file:', err.message);
         }
-    } catch (err) {
-        console.warn('Could not fetch .env file:', err.message);
     }
 
     // Verify

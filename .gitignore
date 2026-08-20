@@ -1,3 +1,4 @@
 .env
 *.log
 scratch/
+js/env.js
