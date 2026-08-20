@@ -183,7 +183,16 @@ const Auth = {
             // Create Supabase Auth Account
             const { data, error } = await supabase.auth.signUp({
                 email: userData.email,
-                password: userData.password
+                password: userData.password,
+                options: {
+                    data: {
+                        full_name: userData.name,
+                        student_id: userData.studentId,
+                        phone: userData.phone || '',
+                        course: userData.course || '',
+                        year: userData.year || ''
+                    }
+                }
             });
 
             if (error) {
@@ -197,10 +206,10 @@ const Auth = {
 
             const avatar = userData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-            // Insert details into profiles table
+            // Insert/Upsert details into profiles table (fail-safe fallback)
             const { error: profileError } = await supabase
                 .from('profiles')
-                .insert([{
+                .upsert({
                     id: user.id,
                     full_name: userData.name,
                     student_id: userData.studentId,
@@ -210,13 +219,18 @@ const Auth = {
                     year: userData.year || '',
                     role: 'student',
                     avatar: avatar
-                }]);
+                });
 
             if (profileError) {
+                if (!data.session) {
+                    // Email verification is enabled. The database trigger will have successfully created the profile.
+                    return { success: true, message: 'Registration successful! Please check your email to confirm your account.' };
+                }
                 return { success: false, message: 'Auth account created, but profile save failed: ' + profileError.message };
             }
 
-            return { success: true, message: 'Registration successful! You can now log in.' };
+            const msg = data.session ? 'Registration successful! You can now log in.' : 'Registration successful! Please confirm your email.';
+            return { success: true, message: msg };
         } catch (err) {
             return { success: false, message: 'An unexpected error occurred during registration: ' + err.message };
         }

@@ -66,5 +66,28 @@ create policy "Students and Admins can view complaints"
 create policy "Students can insert own complaints"
   on public.complaints for insert with check (user_id = auth.uid());
 
-create policy "Admins can update any complaint"
-  on public.complaints for update using (public.is_admin(auth.uid()));
+-- Trigger to automatically create profile on signup
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, full_name, student_id, email, phone, course, year, role, avatar)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    new.raw_user_meta_data->>'student_id',
+    new.email,
+    coalesce(new.raw_user_meta_data->>'phone', ''),
+    coalesce(new.raw_user_meta_data->>'course', ''),
+    coalesce(new.raw_user_meta_data->>'year', ''),
+    'student',
+    upper(substring(coalesce(new.raw_user_meta_data->>'full_name', new.email) from 1 for 2))
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger trigger configuration
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
