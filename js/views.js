@@ -506,9 +506,8 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  STUDENT DASHBOARD
     // ════════════════════════════════════════════════════
-    studentDashboard() {
+    studentDashboard(complaints = []) {
         const user = Auth.getCurrentUser();
-        const complaints = Complaints.getByStudent(user.id);
         const stats = Complaints.getStats(complaints);
         const recent = Complaints.sort('date', 'desc', complaints).slice(0, 5);
 
@@ -690,9 +689,8 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  MY COMPLAINTS (Student)
     // ════════════════════════════════════════════════════
-    myComplaints() {
+    myComplaints(complaints = []) {
         const user = Auth.getCurrentUser();
-        const complaints = Complaints.getByStudent(user.id);
 
         const content = `
         <div class="page-header">
@@ -737,8 +735,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  COMPLAINT DETAIL (Student)
     // ════════════════════════════════════════════════════
-    complaintDetail(id) {
-        const complaint = Complaints.getById(id);
+    complaintDetail(complaint) {
         if (!complaint) {
             return this.layout(`<div class="empty-state"><i class="fa-solid fa-search"></i><h3>Complaint Not Found</h3><p>The complaint you're looking for doesn't exist.</p><a href="#/student/complaints" class="btn btn-primary">Back to Complaints</a></div>`, 'Complaint Details', 'student');
         }
@@ -1062,9 +1059,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN DASHBOARD
     // ════════════════════════════════════════════════════
-    adminDashboard() {
-        const stats = Admin.getDashboardStats();
-        const recent = Admin.getRecentComplaints(5);
+    adminDashboard(stats = {}, recent = []) {
 
         const content = `
         <div class="welcome-banner">
@@ -1170,8 +1165,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN ALL COMPLAINTS
     // ════════════════════════════════════════════════════
-    adminComplaints() {
-        const complaints = Complaints.getAll();
+    adminComplaints(complaints = []) {
         const departments = DataStore.get(DataStore.KEYS.DEPARTMENTS) || [];
 
         const content = `
@@ -1214,15 +1208,12 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN COMPLAINT DETAIL
     // ════════════════════════════════════════════════════
-    adminComplaintDetail(id) {
-        const complaint = Complaints.getById(id);
+    adminComplaintDetail(complaint, student = null) {
         if (!complaint) {
             return this.layout(`<div class="empty-state"><i class="fa-solid fa-search"></i><h3>Complaint Not Found</h3><p>The complaint you're looking for doesn't exist.</p><a href="#/admin/complaints" class="btn btn-primary">Back to Complaints</a></div>`, 'Complaint Details', 'admin');
         }
 
         const departments = DataStore.get(DataStore.KEYS.DEPARTMENTS) || [];
-        const users = DataStore.get(DataStore.KEYS.USERS) || [];
-        const student = users.find(u => u.id === complaint.studentId);
 
         const content = `
         <div class="page-header">
@@ -1399,9 +1390,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN URGENT COMPLAINTS
     // ════════════════════════════════════════════════════
-    adminUrgent() {
-        const all = Complaints.getAll();
-        const urgent = all.filter(c => c.priority === 'Urgent' && c.status !== 'Resolved');
+    adminUrgent(urgent = []) {
 
         const content = `
         <div class="page-header">
@@ -1444,8 +1433,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN STUDENTS
     // ════════════════════════════════════════════════════
-    adminStudents() {
-        const students = Admin.getAllStudents();
+    adminStudents(students = []) {
 
         const content = `
         <div class="page-header">
@@ -1486,8 +1474,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN DEPARTMENTS
     // ════════════════════════════════════════════════════
-    adminDepartments() {
-        const departments = Admin.getComplaintsByDepartment();
+    adminDepartments(departments = []) {
 
         const content = `
         <div class="page-header">
@@ -1532,7 +1519,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  ADMIN REPORTS
     // ════════════════════════════════════════════════════
-    adminReports() {
+    adminReports(stats = {}, departments = []) {
         const content = `
         <div class="page-header">
             <h2>Reports & Analytics</h2>
@@ -1563,7 +1550,7 @@ const Views = {
                             <tr><th>Department</th><th>Total</th><th>Pending</th><th>In Progress</th><th>Resolved</th><th>Resolution Rate</th></tr>
                         </thead>
                         <tbody>
-                            ${Admin.getComplaintsByDepartment().filter(d => d.total > 0).map(d => {
+                            ${departments.filter(d => d.total > 0).map(d => {
                                 const rate = d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0;
                                 return `
                                 <tr>

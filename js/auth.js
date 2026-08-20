@@ -1,119 +1,247 @@
 /* ============================================================
    CampusCare – Authentication Module
-   Mock login/register, session management, route guards
+   Supabase Authentication, Session tracking, Route guards
    ============================================================ */
 
 const Auth = {
-    login(identifier, password) {
-        const users = DataStore.get(DataStore.KEYS.USERS) || [];
-        const input = identifier.toLowerCase();
-        const user = users.find(u =>
-            (u.email.toLowerCase() === input) && u.password === password
-        );
+    _currentUser: null,
+    _initialized: false,
+    _initPromise: null,
 
-        if (!user) {
-            return { success: false, message: 'Invalid credentials. Please check your email/username and password.' };
-        }
+    // Initialize session listener on startup
+    initSessionListener() {
+        if (this._initPromise) return this._initPromise;
+        this._initPromise = new Promise((resolve) => {
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (session && session.user) {
+                    try {
+                        const { data: profile, error } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', session.user.id)
+                            .maybeSingle();
 
-        // Save session (exclude password)
-        const session = { ...user };
-        delete session.password;
-        DataStore.set(DataStore.KEYS.CURRENT_USER, session);
-
-        return { success: true, user: session };
+                        if (profile) {
+                            Auth._currentUser = {
+                                id: profile.student_id || 'STU_UNKNOWN',
+                                uid: profile.id,
+                                name: profile.full_name,
+                                email: profile.email,
+                                phone: profile.phone || '',
+                                course: profile.course || '',
+                                year: profile.year || '',
+                                role: profile.role,
+                                avatar: profile.avatar || 'U',
+                                createdAt: profile.created_at
+                            };
+                        } else {
+                            // Session exists but profile not created yet, or admin user created directly via auth dashboard
+                            const isAdmin = session.user.email.includes('admin');
+                            Auth._currentUser = {
+                                id: isAdmin ? 'ADM001' : 'STU_TEMP',
+                                uid: session.user.id,
+                                name: isAdmin ? 'System Admin' : session.user.email.split('@')[0],
+                                email: session.user.email,
+                                phone: '',
+                                course: '',
+                                year: '',
+                                role: isAdmin ? 'admin' : 'student',
+                                avatar: isAdmin ? 'AD' : 'US',
+                                createdAt: session.user.created_at
+                            };
+                        }
+                    } catch (err) {
+                        console.error('Error fetching user profile:', err);
+                        Auth._currentUser = null;
+                    }
+                } else {
+                    Auth._currentUser = null;
+                }
+                Auth._initialized = true;
+                resolve();
+            });
+        });
+        return this._initPromise;
     },
 
-    register(userData) {
-        const users = DataStore.get(DataStore.KEYS.USERS) || [];
-
-        // Check if email exists
-        if (users.find(u => u.email.toLowerCase() === userData.email.toLowerCase())) {
-            return { success: false, message: 'An account with this email already exists.' };
+    async ensureInitialized() {
+        if (!this._initialized) {
+            await this.initSessionListener();
         }
-
-        // Check if student ID exists
-        if (users.find(u => u.id === userData.studentId)) {
-            return { success: false, message: 'This Student ID is already registered.' };
-        }
-
-        const newUser = {
-            id: userData.studentId,
-            name: userData.name,
-            email: userData.email,
-            password: userData.password,
-            phone: userData.phone || '',
-            course: userData.course || '',
-            year: userData.year || '',
-            role: 'student',
-            avatar: userData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-            createdAt: new Date().toISOString()
-        };
-
-        users.push(newUser);
-        DataStore.set(DataStore.KEYS.USERS, users);
-
-        return { success: true, message: 'Registration successful! Please login to continue.' };
-    },
-
-    logout() {
-        DataStore.set(DataStore.KEYS.CURRENT_USER, null);
     },
 
     getCurrentUser() {
-        return DataStore.get(DataStore.KEYS.CURRENT_USER);
+        return this._currentUser;
     },
 
     isLoggedIn() {
-        return !!this.getCurrentUser();
+        return !!this._currentUser;
     },
 
     isAdmin() {
-        const user = this.getCurrentUser();
-        return user && user.role === 'admin';
+        return this._currentUser && this._currentUser.role === 'admin';
     },
 
     isStudent() {
-        const user = this.getCurrentUser();
-        return user && user.role === 'student';
+        return this._currentUser && this._currentUser.role === 'student';
     },
 
-    updateProfile(data) {
-        const user = this.getCurrentUser();
-        if (!user) return { success: false, message: 'Not logged in.' };
+    async login(email, password) {
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
 
-        const users = DataStore.get(DataStore.KEYS.USERS) || [];
-        const idx = users.findIndex(u => u.id === user.id);
-        if (idx === -1) return { success: false, message: 'User not found.' };
-
-        // Update fields
-        const updatable = ['name', 'phone', 'course', 'year'];
-        updatable.forEach(field => {
-            if (data[field] !== undefined) {
-                users[idx][field] = data[field];
+            if (error) {
+                return { success: false, message: error.message };
             }
-        });
 
-        // Update avatar
-        if (data.name) {
-            users[idx].avatar = data.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        }
+            const { data: profile, error: profError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .maybeSingle();
 
-        // Handle password change
-        if (data.newPassword) {
-            if (data.currentPassword !== users[idx].password) {
-                return { success: false, message: 'Current password is incorrect.' };
+            if (profError) {
+                return { success: false, message: 'Login succeeded but failed to fetch profile: ' + profError.message };
             }
-            users[idx].password = data.newPassword;
+
+            if (profile) {
+                this._currentUser = {
+                    id: profile.student_id || 'STU_UNKNOWN',
+                    uid: profile.id,
+                    name: profile.full_name,
+                    email: profile.email,
+                    phone: profile.phone || '',
+                    course: profile.course || '',
+                    year: profile.year || '',
+                    role: profile.role,
+                    avatar: profile.avatar || 'U',
+                    createdAt: profile.created_at
+                };
+            } else {
+                // If admin logs in and has no profile, create a default in memory
+                const isAdmin = data.user.email.includes('admin') || data.user.email === 'admin@university.edu';
+                this._currentUser = {
+                    id: isAdmin ? 'ADM001' : 'STU_TEMP',
+                    uid: data.user.id,
+                    name: isAdmin ? 'System Admin' : data.user.email.split('@')[0],
+                    email: data.user.email,
+                    phone: '',
+                    course: '',
+                    year: '',
+                    role: isAdmin ? 'admin' : 'student',
+                    avatar: isAdmin ? 'AD' : 'US',
+                    createdAt: data.user.created_at
+                };
+            }
+
+            return { success: true, user: this._currentUser };
+        } catch (err) {
+            return { success: false, message: 'An unexpected authentication error occurred: ' + err.message };
         }
+    },
 
-        DataStore.set(DataStore.KEYS.USERS, users);
+    async register(userData) {
+        try {
+            // Check student ID uniqueness in profiles table first
+            const { data: existingStudent, error: checkError } = await supabase
+                .from('profiles')
+                .select('student_id')
+                .eq('student_id', userData.studentId)
+                .maybeSingle();
 
-        // Update session
-        const session = { ...users[idx] };
-        delete session.password;
-        DataStore.set(DataStore.KEYS.CURRENT_USER, session);
+            if (checkError) {
+                return { success: false, message: 'Database check failed: ' + checkError.message };
+            }
+            if (existingStudent) {
+                return { success: false, message: 'Student ID is already registered.' };
+            }
 
-        return { success: true, message: 'Profile updated successfully.' };
+            // Create Supabase Auth Account
+            const { data, error } = await supabase.auth.signUp({
+                email: userData.email,
+                password: userData.password
+            });
+
+            if (error) {
+                return { success: false, message: error.message };
+            }
+
+            const user = data.user;
+            if (!user) {
+                return { success: false, message: 'Registration failed. No auth user created.' };
+            }
+
+            const avatar = userData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+            // Insert details into profiles table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .insert([{
+                    id: user.id,
+                    full_name: userData.name,
+                    student_id: userData.studentId,
+                    email: userData.email,
+                    phone: userData.phone || '',
+                    course: userData.course || '',
+                    year: userData.year || '',
+                    role: 'student',
+                    avatar: avatar
+                }]);
+
+            if (profileError) {
+                return { success: false, message: 'Auth account created, but profile save failed: ' + profileError.message };
+            }
+
+            return { success: true, message: 'Registration successful! You can now log in.' };
+        } catch (err) {
+            return { success: false, message: 'An unexpected error occurred during registration: ' + err.message };
+        }
+    },
+
+    async logout() {
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.error('Sign out error:', e);
+        }
+        this._currentUser = null;
+    },
+
+    async updateProfile(data) {
+        if (!this._currentUser) return { success: false, message: 'Not logged in.' };
+
+        const avatar = data.name ? data.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : this._currentUser.avatar;
+
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    full_name: data.name,
+                    phone: data.phone,
+                    course: data.course,
+                    year: data.year,
+                    avatar: avatar,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', this._currentUser.uid);
+
+            if (error) {
+                return { success: false, message: error.message };
+            }
+
+            this._currentUser.name = data.name;
+            this._currentUser.phone = data.phone;
+            this._currentUser.course = data.course;
+            this._currentUser.year = data.year;
+            this._currentUser.avatar = avatar;
+
+            return { success: true, message: 'Profile updated successfully.' };
+        } catch (err) {
+            return { success: false, message: 'Unexpected database error: ' + err.message };
+        }
     },
 
     // Route guard - checks if user has access to route

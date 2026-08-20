@@ -1,6 +1,6 @@
 /* ============================================================
    CampusCare – Complaints Module
-   Complaint CRUD, search, filter, sort
+   Database interaction with Supabase, Search, Filter, Sort
    ============================================================ */
 
 const Complaints = {
@@ -14,96 +14,186 @@ const Complaints = {
 
     STATUSES: ['Pending', 'In Progress', 'Resolved'],
 
-    create(data) {
-        const complaints = DataStore.get(DataStore.KEYS.COMPLAINTS) || [];
+    // Helper: Map Supabase database row to the frontend JS schema format
+    mapToJS(c) {
+        if (!c) return null;
+        return {
+            id: c.complaint_id,
+            db_id: c.id,
+            title: c.title,
+            category: c.category,
+            location: c.location || '',
+            description: c.description,
+            priority: c.priority || 'Medium',
+            status: c.status || 'Pending',
+            studentId: c.user_id, // UUID of auth user
+            studentName: c.student_name || 'Anonymous Student',
+            department: c.assigned_department || null,
+            createdAt: c.created_at,
+            updatedAt: c.updated_at,
+            image: null, // Image uploading is demo-only or future extension
+            contact: c.contact || '',
+            notes: c.notes || [],
+            feedback: c.feedback || null,
+            resolution: c.resolution_message || null,
+            timeline: c.timeline || []
+        };
+    },
+
+    async create(data) {
         const user = Auth.getCurrentUser();
         if (!user) return { success: false, message: 'Not logged in.' };
 
-        const id = DataStore.getNextComplaintId();
+        const complaintId = DataStore.getNextComplaintId();
         const now = new Date().toISOString();
 
-        const newComplaint = {
-            id: id,
-            title: data.title,
-            category: data.category,
-            location: data.location || '',
-            description: data.description,
-            priority: data.priority || 'Medium',
-            status: data.priority === 'Urgent' ? 'Pending' : 'Pending',
-            studentId: user.id,
-            studentName: user.name,
-            department: null,
-            createdAt: data.date ? new Date(data.date).toISOString() : now,
-            updatedAt: now,
-            image: data.image || null,
-            contact: data.contact || '',
-            notes: [],
-            feedback: null,
-            resolution: null,
-            timeline: [
-                { step: 'Complaint Submitted', date: now, completed: true },
-                { step: 'Complaint Reviewed', date: null, completed: false },
-                { step: 'Assigned to Department', date: null, completed: false },
-                { step: 'Work in Progress', date: null, completed: false },
-                { step: 'Resolved', date: null, completed: false }
-            ]
-        };
+        const timeline = [
+            { step: 'Complaint Submitted', date: now, completed: true },
+            { step: 'Complaint Reviewed', date: null, completed: false },
+            { step: 'Assigned to Department', date: null, completed: false },
+            { step: 'Work in Progress', date: null, completed: false },
+            { step: 'Resolved', date: null, completed: false }
+        ];
 
-        complaints.unshift(newComplaint);
-        DataStore.set(DataStore.KEYS.COMPLAINTS, complaints);
+        try {
+            const { data: insertedRow, error } = await supabase
+                .from('complaints')
+                .insert([{
+                    complaint_id: complaintId,
+                    user_id: user.uid,
+                    student_name: user.name,
+                    title: data.title,
+                    category: data.category,
+                    location: data.location || '',
+                    description: data.description,
+                    priority: data.priority || 'Medium',
+                    status: 'Pending',
+                    assigned_department: null,
+                    resolution_message: null,
+                    notes: [],
+                    timeline: timeline,
+                    feedback: null,
+                    contact: data.contact || '',
+                    created_at: now,
+                    updated_at: now
+                }])
+                .select()
+                .single();
 
-        // Notify admins
-        Notifications.notifyNewComplaint(newComplaint);
+            if (error) {
+                return { success: false, message: error.message };
+            }
 
-        return { success: true, complaint: newComplaint };
+            // Client-side notification dispatch (safely ignored if notifications.js is not async)
+            try {
+                Notifications.notifyNewComplaint(this.mapToJS(insertedRow));
+            } catch (e) {
+                console.error('Notification trigger error:', e);
+            }
+
+            return { success: true, complaint: this.mapToJS(insertedRow) };
+        } catch (err) {
+            return { success: false, message: 'An unexpected database error occurred: ' + err.message };
+        }
     },
 
-    getAll() {
-        return DataStore.get(DataStore.KEYS.COMPLAINTS) || [];
+    async getAll() {
+        try {
+            const { data, error } = await supabase
+                .from('complaints')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching complaints:', error.message);
+                return [];
+            }
+
+            return (data || []).map(row => this.mapToJS(row));
+        } catch (err) {
+            console.error('Unexpected error in getAll:', err);
+            return [];
+        }
     },
 
-    getById(id) {
-        const complaints = this.getAll();
-        return complaints.find(c => c.id === id) || null;
+    async getById(id) {
+        try {
+            const { data, error } = await supabase
+                .from('complaints')
+                .select('*')
+                .eq('complaint_id', id)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Error fetching complaint by ID:', error.message);
+                return null;
+            }
+
+            return this.mapToJS(data);
+        } catch (err) {
+            console.error('Unexpected error in getById:', err);
+            return null;
+        }
     },
 
-    getByStudent(studentId) {
-        const complaints = this.getAll();
-        return complaints.filter(c => c.studentId === studentId);
+    async getByStudent(userId) {
+        try {
+            // Note: Even if we pass userId, RLS policies enforce that students can only read their own rows.
+            const { data, error } = await supabase
+                .from('complaints')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching complaints by student:', error.message);
+                return [];
+            }
+
+            return (data || []).map(row => this.mapToJS(row));
+        } catch (err) {
+            console.error('Unexpected error in getByStudent:', err);
+            return [];
+        }
     },
 
-    update(id, data) {
-        const complaints = this.getAll();
-        const idx = complaints.findIndex(c => c.id === id);
-        if (idx === -1) return { success: false, message: 'Complaint not found.' };
+    async update(id, fields) {
+        try {
+            const { data, error } = await supabase
+                .from('complaints')
+                .update({
+                    ...fields,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('complaint_id', id)
+                .select()
+                .single();
 
-        Object.assign(complaints[idx], data, { updatedAt: new Date().toISOString() });
-        DataStore.set(DataStore.KEYS.COMPLAINTS, complaints);
-        return { success: true, complaint: complaints[idx] };
+            if (error) {
+                return { success: false, message: error.message };
+            }
+
+            return { success: true, complaint: this.mapToJS(data) };
+        } catch (err) {
+            return { success: false, message: err.message };
+        }
     },
 
-    updateStatus(id, newStatus) {
-        const complaint = this.getById(id);
+    async updateStatus(id, newStatus) {
+        const complaint = await this.getById(id);
         if (!complaint) return { success: false };
 
         const oldStatus = complaint.status;
         const now = new Date().toISOString();
-
-        // Update timeline
         const timeline = complaint.timeline || [];
-        const statusToStep = {
-            'Pending': 1,
-            'In Progress': 3,
-            'Resolved': 4
-        };
 
-        // Mark reviewed
+        // Mark reviewed (Step 1)
         if (newStatus !== 'Pending' && timeline[1] && !timeline[1].completed) {
             timeline[1].completed = true;
             timeline[1].date = now;
         }
 
-        // Mark work in progress
+        // Mark work in progress (Step 3)
         if (newStatus === 'In Progress') {
             if (timeline[3] && !timeline[3].completed) {
                 timeline[3].completed = true;
@@ -111,9 +201,9 @@ const Complaints = {
             }
         }
 
-        // Mark resolved
+        // Mark resolved (Step 4)
         if (newStatus === 'Resolved') {
-            timeline.forEach((step, i) => {
+            timeline.forEach((step) => {
                 if (!step.completed) {
                     step.completed = true;
                     step.date = now;
@@ -121,16 +211,24 @@ const Complaints = {
             });
         }
 
-        this.update(id, { status: newStatus, timeline: timeline });
+        const res = await this.update(id, {
+            status: newStatus,
+            timeline: timeline
+        });
 
-        // Notify student
-        Notifications.notifyStatusChange(complaint, newStatus, oldStatus);
+        if (res.success) {
+            try {
+                Notifications.notifyStatusChange(complaint, newStatus, oldStatus);
+            } catch (e) {
+                console.error('Notification error:', e);
+            }
+        }
 
-        return { success: true };
+        return res;
     },
 
-    assignDepartment(id, department) {
-        const complaint = this.getById(id);
+    async assignDepartment(id, department) {
+        const complaint = await this.getById(id);
         if (!complaint) return { success: false };
 
         const now = new Date().toISOString();
@@ -149,20 +247,28 @@ const Complaints = {
             timeline[2].step = `Assigned to ${department}`;
         }
 
-        this.update(id, { department: department, timeline: timeline });
+        const res = await this.update(id, {
+            assigned_department: department,
+            timeline: timeline
+        });
 
-        // Notify student
-        Notifications.notifyDepartmentAssigned(complaint, department);
+        if (res.success) {
+            try {
+                Notifications.notifyDepartmentAssigned(complaint, department);
+            } catch (e) {
+                console.error('Notification error:', e);
+            }
+        }
 
-        return { success: true };
+        return res;
     },
 
-    changePriority(id, priority) {
+    async changePriority(id, priority) {
         return this.update(id, { priority: priority });
     },
 
-    addNote(id, noteText) {
-        const complaint = this.getById(id);
+    async addNote(id, noteText) {
+        const complaint = await this.getById(id);
         if (!complaint) return { success: false };
 
         const user = Auth.getCurrentUser();
@@ -176,22 +282,41 @@ const Complaints = {
         return this.update(id, { notes: notes });
     },
 
-    addFeedback(id, feedback) {
+    async addFeedback(id, feedback) {
         return this.update(id, { feedback: feedback });
     },
 
-    addResolution(id, message) {
-        const complaint = this.getById(id);
+    async addResolution(id, message) {
+        const complaint = await this.getById(id);
         if (!complaint) return { success: false };
 
-        this.update(id, { resolution: message });
-        this.updateStatus(id, 'Resolved');
-        Notifications.notifyResolution(complaint, message);
+        const now = new Date().toISOString();
+        const timeline = complaint.timeline || [];
+        timeline.forEach((step) => {
+            if (!step.completed) {
+                step.completed = true;
+                step.date = now;
+            }
+        });
 
-        return { success: true };
+        const res = await this.update(id, {
+            resolution_message: message,
+            status: 'Resolved',
+            timeline: timeline
+        });
+
+        if (res.success) {
+            try {
+                Notifications.notifyResolution(complaint, message);
+            } catch (e) {
+                console.error('Notification error:', e);
+            }
+        }
+
+        return res;
     },
 
-    // ── Search, Filter, Sort ────────────────────────────
+    // ── Search, Filter, Sort (remains client-side on the fetched lists) ──
     search(query, complaints) {
         if (!query) return complaints;
         const q = query.toLowerCase();
@@ -253,8 +378,8 @@ const Complaints = {
         });
     },
 
-    getStats(complaints) {
-        const all = complaints || this.getAll();
+    getStats(complaintsList) {
+        const all = complaintsList || [];
         return {
             total: all.length,
             pending: all.filter(c => c.status === 'Pending').length,

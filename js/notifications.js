@@ -67,18 +67,24 @@ const Notifications = {
         });
     },
 
-    notifyNewComplaint(complaint) {
-        // Notify all admins
-        const users = DataStore.get(DataStore.KEYS.USERS) || [];
-        const admins = users.filter(u => u.role === 'admin');
-        admins.forEach(admin => {
-            this.add({
-                userId: admin.id,
-                type: complaint.priority === 'Urgent' ? 'urgent' : 'info',
-                title: complaint.priority === 'Urgent' ? 'New Urgent Complaint' : 'New Complaint',
-                message: `A new ${complaint.priority === 'Urgent' ? 'urgent ' : ''}complaint ${complaint.id} (${complaint.title}) has been submitted by ${complaint.studentName}.`
+    async notifyNewComplaint(complaint) {
+        try {
+            const { data: admins } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('role', 'admin');
+
+            (admins || []).forEach(admin => {
+                this.add({
+                    userId: admin.id,
+                    type: complaint.priority === 'Urgent' ? 'urgent' : 'info',
+                    title: complaint.priority === 'Urgent' ? 'New Urgent Complaint' : 'New Complaint',
+                    message: `A new ${complaint.priority === 'Urgent' ? 'urgent ' : ''}complaint ${complaint.id} (${complaint.title}) has been submitted by ${complaint.studentName}.`
+                });
             });
-        });
+        } catch (err) {
+            console.error('notifyNewComplaint error:', err);
+        }
     },
 
     notifyResolution(complaint, message) {

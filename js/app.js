@@ -8,7 +8,10 @@ const App = {
     _landingTimer: null,  // holds the real-time polling interval for the landing page
     init() {
         DataStore.init();
-        this.router();
+        // Initialize Supabase session state before loading any route
+        Auth.initSessionListener().then(() => {
+            this.router();
+        });
         window.addEventListener('hashchange', () => this.router());
         // Global event delegation
         document.addEventListener('click', (e) => this.handleClick(e));
@@ -18,7 +21,7 @@ const App = {
     },
 
     // ── Router ──────────────────────────────────────────
-    router() {
+    async router() {
         const hash = window.location.hash || '#/';
         const app = document.getElementById('app');
         if (!app) return;
@@ -28,6 +31,9 @@ const App = {
             clearInterval(this._landingTimer);
             this._landingTimer = null;
         }
+
+        // Wait for auth initialization to complete
+        await Auth.ensureInitialized();
 
         // Route guard
         if (!Auth.checkAccess(hash)) {
@@ -41,57 +47,97 @@ const App = {
             return;
         }
 
-        let html = '';
+        // Show loading indicator in app container while fetching dashboard/data
+        const needsLoading = ['#/student/dashboard', '#/student/complaints', '#/admin/dashboard', '#/admin/complaints', '#/admin/urgent', '#/admin/students', '#/admin/departments', '#/admin/reports'].includes(hash) || hash.startsWith('#/student/complaint/') || hash.startsWith('#/admin/complaint/');
+        if (needsLoading && app.innerHTML.trim() !== '') {
+            app.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;min-height:80vh;flex-direction:column;color:var(--text-secondary);">
+                    <div class="loading-spinner"></div>
+                    <p style="font-size:0.875rem;margin-top:12px;font-weight:500;">Loading secure data...</p>
+                </div>
+            `;
+        }
 
-        // Match routes
-        if (hash === '#/' || hash === '') {
-            html = Views.landing();
-        } else if (hash === '#/login') {
-            html = Views.login();
-        } else if (hash === '#/register') {
-            html = Views.register();
-        }
-        // Student routes
-        else if (hash === '#/student/dashboard') {
-            html = Views.studentDashboard();
-        } else if (hash === '#/student/raise-complaint') {
-            html = Views.raiseComplaint();
-        } else if (hash === '#/student/complaints') {
-            html = Views.myComplaints();
-        } else if (hash.startsWith('#/student/complaint/')) {
-            const id = hash.replace('#/student/complaint/', '');
-            html = Views.complaintDetail(id);
-        } else if (hash === '#/student/notifications') {
-            html = Views.studentNotifications();
-        } else if (hash === '#/student/profile') {
-            html = Views.studentProfile();
-        } else if (hash === '#/student/help') {
-            html = Views.helpSupport();
-        }
-        // Admin routes
-        else if (hash === '#/admin/dashboard') {
-            html = Views.adminDashboard();
-        } else if (hash === '#/admin/complaints') {
-            html = Views.adminComplaints();
-        } else if (hash.startsWith('#/admin/complaint/')) {
-            const id = hash.replace('#/admin/complaint/', '');
-            html = Views.adminComplaintDetail(id);
-        } else if (hash === '#/admin/urgent') {
-            html = Views.adminUrgent();
-        } else if (hash === '#/admin/students') {
-            html = Views.adminStudents();
-        } else if (hash === '#/admin/departments') {
-            html = Views.adminDepartments();
-        } else if (hash === '#/admin/reports') {
-            html = Views.adminReports();
-        } else if (hash === '#/admin/notifications') {
-            html = Views.adminNotifications();
-        } else if (hash === '#/admin/settings') {
-            html = Views.adminSettings();
-        }
-        // Fallback
-        else {
-            html = Views.landing();
+        let html = '';
+        const user = Auth.getCurrentUser();
+
+        try {
+            // Match routes
+            if (hash === '#/' || hash === '') {
+                html = Views.landing();
+            } else if (hash === '#/login') {
+                html = Views.login();
+            } else if (hash === '#/register') {
+                html = Views.register();
+            }
+            // Student routes
+            else if (hash === '#/student/dashboard') {
+                const complaints = await Complaints.getByStudent(user.uid);
+                html = Views.studentDashboard(complaints);
+            } else if (hash === '#/student/raise-complaint') {
+                html = Views.raiseComplaint();
+            } else if (hash === '#/student/complaints') {
+                const complaints = await Complaints.getByStudent(user.uid);
+                html = Views.myComplaints(complaints);
+            } else if (hash.startsWith('#/student/complaint/')) {
+                const id = hash.replace('#/student/complaint/', '');
+                const complaint = await Complaints.getById(id);
+                html = Views.complaintDetail(complaint);
+            } else if (hash === '#/student/notifications') {
+                html = Views.studentNotifications();
+            } else if (hash === '#/student/profile') {
+                html = Views.studentProfile();
+            } else if (hash === '#/student/help') {
+                html = Views.helpSupport();
+            }
+            // Admin routes
+            else if (hash === '#/admin/dashboard') {
+                const stats = await Admin.getDashboardStats();
+                const recent = await Admin.getRecentComplaints(5);
+                html = Views.adminDashboard(stats, recent);
+            } else if (hash === '#/admin/complaints') {
+                const complaints = await Complaints.getAll();
+                html = Views.adminComplaints(complaints);
+            } else if (hash.startsWith('#/admin/complaint/')) {
+                const id = hash.replace('#/admin/complaint/', '');
+                const complaint = await Complaints.getById(id);
+                let student = null;
+                if (complaint) {
+                    // Fetch student avatar/email info
+                    const { data } = await supabase.from('profiles').select('*').eq('id', complaint.studentId).maybeSingle();
+                    if (data) {
+                        student = {
+                            avatar: data.avatar || 'U',
+                            email: data.email
+                        };
+                    }
+                }
+                html = Views.adminComplaintDetail(complaint, student);
+            } else if (hash === '#/admin/urgent') {
+                const urgent = await Admin.getUrgentComplaints();
+                html = Views.adminUrgent(urgent);
+            } else if (hash === '#/admin/students') {
+                const students = await Admin.getAllStudents();
+                html = Views.adminStudents(students);
+            } else if (hash === '#/admin/departments') {
+                const depts = await Admin.getComplaintsByDepartment();
+                html = Views.adminDepartments(depts);
+            } else if (hash === '#/admin/reports') {
+                const stats = await Admin.getDashboardStats();
+                const depts = await Admin.getComplaintsByDepartment();
+                html = Views.adminReports(stats, depts);
+            } else if (hash === '#/admin/notifications') {
+                html = Views.adminNotifications();
+            } else if (hash === '#/admin/settings') {
+                html = Views.adminSettings();
+            }
+            // Fallback
+            else {
+                html = Views.landing();
+            }
+        } catch (err) {
+            console.error('Error rendering route:', err);
+            html = `<div style="padding:48px;text-align:center;"><h3>Error loading page</h3><p style="color:var(--error-600);">${err.message}</p><a href="#/" class="btn btn-primary btn-sm">Home</a></div>`;
         }
 
         app.innerHTML = html;
@@ -153,7 +199,7 @@ const App = {
             if (el && el.textContent !== text) el.textContent = text;
         };
 
-        const refresh = () => {
+        const refresh = async () => {
             // Bail out if landing page is no longer rendered
             if (!document.getElementById('rt-stat-total')) {
                 clearInterval(this._landingTimer);
@@ -161,10 +207,10 @@ const App = {
                 return;
             }
 
-            const allComplaints = Complaints.getAll();
+            const allComplaints = await Complaints.getAll();
             const s = Complaints.getStats(allComplaints);
-            const users = DataStore.get(DataStore.KEYS.USERS) || [];
-            const studentCount = users.filter(u => u.role === 'student').length;
+            const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
+            const studentCount = count || 0;
             const rate = s.total > 0 ? Math.round((s.resolved / s.total) * 100) : 0;
 
             // Stats strip
@@ -185,22 +231,22 @@ const App = {
         this._landingTimer = setInterval(refresh, 3000);
     },
 
-    renderDashboardCharts() {
-        const statusData = Admin.getStatusDistribution();
+    async renderDashboardCharts() {
+        const statusData = await Admin.getStatusDistribution();
         Charts.renderDonutChart('status-chart', statusData, { centerLabel: 'Complaints' });
 
-        const monthlyData = Admin.getComplaintsByMonth();
+        const monthlyData = await Admin.getComplaintsByMonth();
         Charts.renderBarChart('monthly-chart', monthlyData);
     },
 
-    renderReportCharts() {
-        const statusData = Admin.getStatusDistribution();
+    async renderReportCharts() {
+        const statusData = await Admin.getStatusDistribution();
         Charts.renderDonutChart('report-status-chart', statusData, { centerLabel: 'Complaints' });
 
-        const monthlyData = Admin.getComplaintsByMonth();
+        const monthlyData = await Admin.getComplaintsByMonth();
         Charts.renderBarChart('report-monthly-chart', monthlyData);
 
-        const categoryData = Admin.getComplaintsByCategory();
+        const categoryData = await Admin.getComplaintsByCategory();
         const categoryColors = ['#6366f1', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#10b981', '#f97316', '#06b6d4', '#ef4444', '#3b82f6', '#64748b'];
         Charts.renderBarChart('report-category-chart', categoryData.map((c, i) => ({
             label: c.name,
@@ -208,6 +254,19 @@ const App = {
             count: c.count,
             color: categoryColors[i % categoryColors.length]
         })));
+    },
+
+    // ── Helper for button loading states ────────────────
+    setLoading(btn, isLoading, customText = 'Processing...') {
+        if (!btn) return;
+        if (isLoading) {
+            btn.disabled = true;
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${customText}`;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+        }
     },
 
     // ── Event Handlers ──────────────────────────────────
@@ -218,9 +277,10 @@ const App = {
         if (target && target.dataset.action === 'logout') {
             e.preventDefault();
             Utils.showConfirm('Are you sure you want to logout?', () => {
-                Auth.logout();
-                window.location.hash = '#/login';
-                Utils.showToast('You have been logged out.', 'info');
+                Auth.logout().then(() => {
+                    window.location.hash = '#/login';
+                    Utils.showToast('You have been logged out.', 'info');
+                });
             }, 'Logout');
             return;
         }
@@ -266,7 +326,7 @@ const App = {
         if (target && target.dataset.action === 'mark-all-read') {
             const user = Auth.getCurrentUser();
             if (user) {
-                Notifications.markAllAsRead(user.id);
+                Notifications.markAllAsRead(user.uid);
                 Utils.showToast('All notifications marked as read.', 'success');
                 this.router(); // Refresh
             }
@@ -352,9 +412,16 @@ const App = {
                 Utils.showToast('Please enter a note.', 'warning');
                 return;
             }
-            Admin.addAdminNote(compId, text);
-            Utils.showToast('Note added successfully.', 'success');
-            this.router();
+            e.preventDefault();
+            this.setLoading(btn, true, 'Adding...');
+            Admin.addAdminNote(compId, text).then(() => {
+                this.setLoading(btn, false);
+                Utils.showToast('Note added successfully.', 'success');
+                this.router();
+            }).catch(err => {
+                this.setLoading(btn, false);
+                Utils.showToast('Failed to add note: ' + err.message, 'error');
+            });
             return;
         }
 
@@ -369,22 +436,16 @@ const App = {
                 return;
             }
             Utils.showConfirm('Are you sure you want to resolve this complaint?', () => {
-                Admin.resolveComplaint(compId, text);
-                Utils.showToast('Complaint resolved successfully!', 'success');
-                this.router();
+                this.setLoading(btn, true, 'Resolving...');
+                Admin.resolveComplaint(compId, text).then(() => {
+                    this.setLoading(btn, false);
+                    Utils.showToast('Complaint resolved successfully!', 'success');
+                    this.router();
+                }).catch(err => {
+                    this.setLoading(btn, false);
+                    Utils.showToast('Failed to resolve complaint: ' + err.message, 'error');
+                });
             }, 'Resolve Complaint');
-            return;
-        }
-
-        // Reset data
-        if (target && target.dataset.action === 'reset-data') {
-            Utils.showConfirm('This will clear all data and restore sample complaints. Are you sure?', () => {
-                localStorage.clear();
-                DataStore.init();
-                Auth.logout();
-                window.location.hash = '#/login';
-                Utils.showToast('All data has been reset.', 'info');
-            }, 'Reset Data');
             return;
         }
 
@@ -472,8 +533,14 @@ const App = {
     },
 
     // ── Login ───────────────────────────────────────────
-    performLogin(email, password) {
-        const result = Auth.login(email, password);
+    async performLogin(email, password) {
+        const form = document.getElementById('login-form');
+        const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        this.setLoading(submitBtn, true, 'Logging in...');
+
+        const result = await Auth.login(email, password);
+        this.setLoading(submitBtn, false);
+
         if (result.success) {
             const role = result.user.role;
             Utils.showToast(`Welcome back, ${result.user.name}!`, 'success', 'Login Successful');
@@ -484,7 +551,7 @@ const App = {
     },
 
     // ── Register ────────────────────────────────────────
-    handleRegister() {
+    async handleRegister() {
         const { valid } = Utils.validateForm({
             'reg-name': [{ required: true, message: 'Full name is required' }],
             'reg-student-id': [{ required: true, message: 'Student ID is required' }],
@@ -509,7 +576,11 @@ const App = {
             return;
         }
 
-        const result = Auth.register({
+        const form = document.getElementById('register-form');
+        const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        this.setLoading(submitBtn, true, 'Creating account...');
+
+        const result = await Auth.register({
             name: document.getElementById('reg-name').value.trim(),
             studentId: document.getElementById('reg-student-id').value.trim(),
             email: document.getElementById('reg-email').value.trim(),
@@ -518,6 +589,8 @@ const App = {
             year: document.getElementById('reg-year').value,
             password: document.getElementById('reg-password').value
         });
+
+        this.setLoading(submitBtn, false);
 
         if (result.success) {
             Utils.showToast(result.message, 'success', 'Registration Complete');
@@ -528,7 +601,7 @@ const App = {
     },
 
     // ── Complaint Submit ────────────────────────────────
-    handleComplaintSubmit() {
+    async handleComplaintSubmit() {
         const { valid } = Utils.validateForm({
             'comp-title': [{ required: true, message: 'Complaint title is required' }],
             'comp-category': [{ required: true, message: 'Please select a category' }],
@@ -545,7 +618,11 @@ const App = {
             return;
         }
 
-        const result = Complaints.create({
+        const form = document.getElementById('complaint-form');
+        const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        this.setLoading(submitBtn, true, 'Submitting...');
+
+        const result = await Complaints.create({
             title: document.getElementById('comp-title').value.trim(),
             category: document.getElementById('comp-category').value,
             location: document.getElementById('comp-location').value.trim(),
@@ -553,8 +630,10 @@ const App = {
             priority: document.getElementById('comp-priority').value,
             date: document.getElementById('comp-date').value,
             contact: document.getElementById('comp-contact').value.trim(),
-            image: null // File handling is demo-only
+            image: null
         });
+
+        this.setLoading(submitBtn, false);
 
         if (result.success) {
             Utils.showToast(
@@ -571,7 +650,7 @@ const App = {
     },
 
     // ── Feedback Submit ─────────────────────────────────
-    handleFeedbackSubmit(form) {
+    async handleFeedbackSubmit(form) {
         const compId = form.dataset.complaintId;
         const ratingEl = document.getElementById('star-rating');
         const rating = ratingEl ? parseInt(ratingEl.dataset.rating) : 0;
@@ -582,19 +661,29 @@ const App = {
             return;
         }
 
-        Complaints.addFeedback(compId, { rating, comment });
+        const submitBtn = form.querySelector('button[type="submit"]');
+        this.setLoading(submitBtn, true, 'Submitting feedback...');
+
+        await Complaints.addFeedback(compId, { rating, comment });
+        this.setLoading(submitBtn, false);
         Utils.showToast('Thank you for your feedback!', 'success');
         this.router();
     },
 
     // ── Profile Edit ────────────────────────────────────
-    handleProfileEdit() {
-        const result = Auth.updateProfile({
+    async handleProfileEdit() {
+        const form = document.getElementById('profile-edit-form');
+        const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        this.setLoading(submitBtn, true, 'Updating profile...');
+
+        const result = await Auth.updateProfile({
             name: document.getElementById('edit-name').value.trim(),
             phone: document.getElementById('edit-phone').value.trim(),
             course: document.getElementById('edit-course').value.trim(),
             year: document.getElementById('edit-year').value
         });
+
+        this.setLoading(submitBtn, false);
 
         if (result.success) {
             Utils.showToast('Profile updated successfully!', 'success');
@@ -605,33 +694,38 @@ const App = {
     },
 
     // ── Admin: Save changes ─────────────────────────────
-    saveAdminChanges(compId) {
+    async saveAdminChanges(compId) {
         const statusEl = document.getElementById('admin-status-select');
         const deptEl = document.getElementById('admin-dept-select');
         const priorityEl = document.getElementById('admin-priority-select');
 
-        const complaint = Complaints.getById(compId);
+        const complaint = await Complaints.getById(compId);
         if (!complaint) return;
+
+        const submitBtn = document.getElementById('save-admin-changes');
+        this.setLoading(submitBtn, true, 'Saving changes...');
 
         let changed = false;
 
         // Status change
         if (statusEl && statusEl.value !== complaint.status) {
-            Admin.updateComplaintStatus(compId, statusEl.value);
+            await Admin.updateComplaintStatus(compId, statusEl.value);
             changed = true;
         }
 
         // Department assignment
         if (deptEl && deptEl.value && deptEl.value !== complaint.department) {
-            Admin.assignDepartment(compId, deptEl.value);
+            await Admin.assignDepartment(compId, deptEl.value);
             changed = true;
         }
 
         // Priority change
         if (priorityEl && priorityEl.value !== complaint.priority) {
-            Admin.changePriority(compId, priorityEl.value);
+            await Admin.changePriority(compId, priorityEl.value);
             changed = true;
         }
+
+        this.setLoading(submitBtn, false);
 
         if (changed) {
             Utils.showToast('Complaint updated successfully.', 'success');
@@ -642,7 +736,7 @@ const App = {
     },
 
     // ── Filter & Search Complaints ──────────────────────
-    filterComplaints() {
+    async filterComplaints() {
         const searchInput = document.getElementById('search-input');
         const categoryFilter = document.getElementById('filter-category');
         const statusFilter = document.getElementById('filter-status');
@@ -661,9 +755,9 @@ const App = {
         const user = Auth.getCurrentUser();
         let complaints;
         if (Auth.isAdmin()) {
-            complaints = Complaints.getAll();
+            complaints = await Complaints.getAll();
         } else {
-            complaints = Complaints.getByStudent(user.id);
+            complaints = await Complaints.getByStudent(user.uid);
         }
 
         // Apply search
@@ -719,7 +813,7 @@ const App = {
 
         if (dropdown.classList.contains('hidden')) {
             const user = Auth.getCurrentUser();
-            const notifs = Notifications.getAll(user.id).slice(0, 5);
+            const notifs = Notifications.getAll(user.uid).slice(0, 5);
 
             dropdown.innerHTML = `
                 <div class="notif-dropdown-header">
