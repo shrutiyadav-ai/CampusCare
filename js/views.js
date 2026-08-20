@@ -60,9 +60,9 @@ const Views = {
                                     <div class="mockup-status-icon"><i class="fa-solid fa-paper-plane"></i></div>
                                     <div class="mockup-status-info">
                                         <span class="mockup-status-label">Complaint Submitted</span>
-                                        <span class="mockup-status-count">${stats.total} total</span>
+                                        <span class="mockup-status-count" id="rt-total">${stats.total} total</span>
                                     </div>
-                                    <span class="mockup-status-badge pending-badge">${stats.pending} pending</span>
+                                    <span class="mockup-status-badge pending-badge" id="rt-pending">${stats.pending} pending</span>
                                 </div>
                                 <div class="mockup-status-item in-progress">
                                     <div class="mockup-status-icon"><i class="fa-solid fa-arrows-rotate"></i></div>
@@ -70,7 +70,7 @@ const Views = {
                                         <span class="mockup-status-label">In Progress</span>
                                         <span class="mockup-status-count">Being reviewed</span>
                                     </div>
-                                    <span class="mockup-status-badge progress-badge">${stats.inProgress} active</span>
+                                    <span class="mockup-status-badge progress-badge" id="rt-inprogress">${stats.inProgress} active</span>
                                 </div>
                                 <div class="mockup-status-item resolved">
                                     <div class="mockup-status-icon"><i class="fa-solid fa-circle-check"></i></div>
@@ -78,7 +78,7 @@ const Views = {
                                         <span class="mockup-status-label">Resolved</span>
                                         <span class="mockup-status-count">Successfully closed</span>
                                     </div>
-                                    <span class="mockup-status-badge resolved-badge">${stats.resolved} done</span>
+                                    <span class="mockup-status-badge resolved-badge" id="rt-resolved">${stats.resolved} done</span>
                                 </div>
                             </div>
                         </div>
@@ -86,27 +86,27 @@ const Views = {
                 </div>
             </section>
 
-            <!-- Statistics Section -->
+            <!-- Statistics Section (real-time, sourced from LocalStorage) -->
             <section class="stats-section">
                 <div class="stats-inner reveal-on-scroll">
                     <div class="stat-item">
-                        <div class="stat-number">1,250+</div>
+                        <div class="stat-number" id="rt-stat-resolved">${stats.resolved}</div>
                         <div class="stat-label">Complaints Resolved</div>
                     </div>
                     <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <div class="stat-number">98%</div>
-                        <div class="stat-label">Student Satisfaction</div>
+                        <div class="stat-number" id="rt-stat-rate">${resolutionRate}%</div>
+                        <div class="stat-label">Resolution Rate</div>
                     </div>
                     <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <div class="stat-number">24/7</div>
-                        <div class="stat-label">Complaint Tracking</div>
+                        <div class="stat-number" id="rt-stat-total">${stats.total}</div>
+                        <div class="stat-label">Total Complaints</div>
                     </div>
                     <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <div class="stat-number">10+</div>
-                        <div class="stat-label">Campus Departments</div>
+                        <div class="stat-number" id="rt-stat-students">${studentCount}</div>
+                        <div class="stat-label">Registered Students</div>
                     </div>
                 </div>
             </section>

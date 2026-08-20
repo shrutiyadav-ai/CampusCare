@@ -5,6 +5,7 @@
 
 const App = {
     // ── Initialization ──────────────────────────────────
+    _landingTimer: null,  // holds the real-time polling interval for the landing page
     init() {
         DataStore.init();
         this.router();
@@ -21,6 +22,12 @@ const App = {
         const hash = window.location.hash || '#/';
         const app = document.getElementById('app');
         if (!app) return;
+
+        // Clear landing real-time poller when navigating away
+        if (this._landingTimer) {
+            clearInterval(this._landingTimer);
+            this._landingTimer = null;
+        }
 
         // Route guard
         if (!Auth.checkAccess(hash)) {
@@ -109,6 +116,7 @@ const App = {
         // Setup scroll-reveal animations on landing page
         if (hash === '#/' || hash === '') {
             this.setupScrollReveal();
+            this.setupLandingRealtime();
         }
 
         // Focus management
@@ -135,6 +143,46 @@ const App = {
         }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
 
         revealElements.forEach(el => observer.observe(el));
+    },
+
+    // ── Landing Real-Time Stats Updater ──────────────────
+    setupLandingRealtime() {
+        // Helper: patch a single element's textContent only when the value changes
+        const patch = (id, text) => {
+            const el = document.getElementById(id);
+            if (el && el.textContent !== text) el.textContent = text;
+        };
+
+        const refresh = () => {
+            // Bail out if landing page is no longer rendered
+            if (!document.getElementById('rt-stat-total')) {
+                clearInterval(this._landingTimer);
+                this._landingTimer = null;
+                return;
+            }
+
+            const allComplaints = Complaints.getAll();
+            const s = Complaints.getStats(allComplaints);
+            const users = DataStore.get(DataStore.KEYS.USERS) || [];
+            const studentCount = users.filter(u => u.role === 'student').length;
+            const rate = s.total > 0 ? Math.round((s.resolved / s.total) * 100) : 0;
+
+            // Stats strip
+            patch('rt-stat-resolved', String(s.resolved));
+            patch('rt-stat-rate',     rate + '%');
+            patch('rt-stat-total',    String(s.total));
+            patch('rt-stat-students', String(studentCount));
+
+            // Hero mockup card
+            patch('rt-total',      s.total + ' total');
+            patch('rt-pending',    s.pending + ' pending');
+            patch('rt-inprogress', s.inProgress + ' active');
+            patch('rt-resolved',   s.resolved + ' done');
+        };
+
+        // Run once immediately, then every 3 seconds
+        refresh();
+        this._landingTimer = setInterval(refresh, 3000);
     },
 
     renderDashboardCharts() {
