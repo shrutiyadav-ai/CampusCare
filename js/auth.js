@@ -11,60 +11,73 @@ const Auth = {
     // Initialize session listener on startup
     initSessionListener() {
         if (this._initPromise) return this._initPromise;
-        this._initPromise = new Promise((resolve) => {
-            supabase.auth.onAuthStateChange(async (event, session) => {
-                if (session && session.user) {
-                    try {
-                        const { data: profile, error } = await supabase
-                            .from('profiles')
-                            .select('*')
-                            .eq('id', session.user.id)
-                            .maybeSingle();
+        this._initPromise = (async () => {
+            // First wait for Supabase config fetch to complete
+            await window.supabaseInitPromise;
 
-                        if (profile) {
-                            Auth._currentUser = {
-                                id: profile.student_id || 'STU_UNKNOWN',
-                                uid: profile.id,
-                                name: profile.full_name,
-                                email: profile.email,
-                                phone: profile.phone || '',
-                                course: profile.course || '',
-                                year: profile.year || '',
-                                role: profile.role,
-                                avatar: profile.avatar || 'U',
-                                createdAt: profile.created_at
-                            };
-                        } else {
-                            // Session exists but profile not created yet, or admin user created directly via auth dashboard
-                            const isAdmin = session.user.email.includes('admin');
-                            Auth._currentUser = {
-                                id: isAdmin ? 'ADM001' : 'STU_TEMP',
-                                uid: session.user.id,
-                                name: isAdmin ? 'System Admin' : session.user.email.split('@')[0],
-                                email: session.user.email,
-                                phone: '',
-                                course: '',
-                                year: '',
-                                role: isAdmin ? 'admin' : 'student',
-                                avatar: isAdmin ? 'AD' : 'US',
-                                createdAt: session.user.created_at
-                            };
+            return new Promise((resolve) => {
+                if (!window.supabase) {
+                    Auth._currentUser = null;
+                    Auth._initialized = true;
+                    resolve();
+                    return;
+                }
+
+                supabase.auth.onAuthStateChange(async (event, session) => {
+                    if (session && session.user) {
+                        try {
+                            const { data: profile, error } = await supabase
+                                .from('profiles')
+                                .select('*')
+                                .eq('id', session.user.id)
+                                .maybeSingle();
+
+                            if (profile) {
+                                Auth._currentUser = {
+                                    id: profile.student_id || 'STU_UNKNOWN',
+                                    uid: profile.id,
+                                    name: profile.full_name,
+                                    email: profile.email,
+                                    phone: profile.phone || '',
+                                    course: profile.course || '',
+                                    year: profile.year || '',
+                                    role: profile.role,
+                                    avatar: profile.avatar || 'U',
+                                    createdAt: profile.created_at
+                                };
+                            } else {
+                                // Session exists but profile not created yet, or admin user created directly via auth dashboard
+                                const isAdmin = session.user.email.includes('admin');
+                                Auth._currentUser = {
+                                    id: isAdmin ? 'ADM001' : 'STU_TEMP',
+                                    uid: session.user.id,
+                                    name: isAdmin ? 'System Admin' : session.user.email.split('@')[0],
+                                    email: session.user.email,
+                                    phone: '',
+                                    course: '',
+                                    year: '',
+                                    role: isAdmin ? 'admin' : 'student',
+                                    avatar: isAdmin ? 'AD' : 'US',
+                                    createdAt: session.user.created_at
+                                };
+                            }
+                        } catch (err) {
+                            console.error('Error fetching user profile:', err);
+                            Auth._currentUser = null;
                         }
-                    } catch (err) {
-                        console.error('Error fetching user profile:', err);
+                    } else {
                         Auth._currentUser = null;
                     }
-                } else {
-                    Auth._currentUser = null;
-                }
-                Auth._initialized = true;
-                resolve();
+                    Auth._initialized = true;
+                    resolve();
+                });
             });
-        });
+        })();
         return this._initPromise;
     },
 
     async ensureInitialized() {
+        await window.supabaseInitPromise;
         if (!this._initialized) {
             await this.initSessionListener();
         }
@@ -87,6 +100,10 @@ const Auth = {
     },
 
     async login(email, password) {
+        if (!window.supabase) {
+            return { success: false, message: window.SUPABASE_CONFIG_ERROR || 'Supabase authentication service is currently unavailable.' };
+        }
+
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
                 email: email,
@@ -144,6 +161,10 @@ const Auth = {
     },
 
     async register(userData) {
+        if (!window.supabase) {
+            return { success: false, message: window.SUPABASE_CONFIG_ERROR || 'Supabase authentication service is currently unavailable.' };
+        }
+
         try {
             // Check student ID uniqueness in profiles table first
             const { data: existingStudent, error: checkError } = await supabase
@@ -202,6 +223,7 @@ const Auth = {
     },
 
     async logout() {
+        if (!window.supabase) return;
         try {
             await supabase.auth.signOut();
         } catch (e) {
@@ -212,6 +234,9 @@ const Auth = {
 
     async updateProfile(data) {
         if (!this._currentUser) return { success: false, message: 'Not logged in.' };
+        if (!window.supabase) {
+            return { success: false, message: window.SUPABASE_CONFIG_ERROR || 'Supabase service is currently unavailable.' };
+        }
 
         const avatar = data.name ? data.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : this._currentUser.avatar;
 

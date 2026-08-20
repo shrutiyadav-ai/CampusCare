@@ -9,15 +9,18 @@ const Views = {
     //  LANDING PAGE
     // ════════════════════════════════════════════════════
     landing() {
-        // Pull LIVE system stats — no fake data
-        const allComplaints = Complaints.getAll();
-        const stats = Complaints.getStats(allComplaints);
-        const users = DataStore.get(DataStore.KEYS.USERS) || [];
-        const studentCount = users.filter(u => u.role === 'student').length;
-        const resolutionRate = stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0;
+        const stats = { total: 0, pending: 0, inProgress: 0, resolved: 0, urgent: 0 };
+        const studentCount = 0;
+        const resolutionRate = 0;
 
         return `
         <div class="landing-page">
+            ${window.SUPABASE_CONFIG_ERROR ? `
+                <div class="config-error-banner" style="background:#FEF2F2;border-bottom:1px solid #FCA5A5;color:#991B1B;padding:12px 24px;text-align:center;font-size:0.875rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;z-index:9999;position:relative;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:#EF4444;"></i>
+                    <span>${window.SUPABASE_CONFIG_ERROR}</span>
+                </div>
+            ` : ''}
             <!-- Navigation Bar -->
             <nav class="landing-nav" id="landing-nav">
                 <div class="landing-nav-logo">
@@ -243,6 +246,12 @@ const Views = {
         <div class="auth-page">
             <a href="#/" class="auth-back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
             <div class="auth-container">
+                ${window.SUPABASE_CONFIG_ERROR ? `
+                    <div class="config-error-banner" style="background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;padding:12px;border-radius:var(--radius-md);margin-bottom:20px;font-size:0.8125rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size:1rem;color:#EF4444;"></i>
+                        <span style="text-align:left;">${window.SUPABASE_CONFIG_ERROR}</span>
+                    </div>
+                ` : ''}
                 <div class="auth-logo">
                     <div class="logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
                     <span class="logo-text">CampusCare</span>
@@ -296,6 +305,12 @@ const Views = {
         <div class="auth-page">
             <a href="#/" class="auth-back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
             <div class="auth-container register-container">
+                ${window.SUPABASE_CONFIG_ERROR ? `
+                    <div class="config-error-banner" style="background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;padding:12px;border-radius:var(--radius-md);margin-bottom:20px;font-size:0.8125rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size:1rem;color:#EF4444;"></i>
+                        <span style="text-align:left;">${window.SUPABASE_CONFIG_ERROR}</span>
+                    </div>
+                ` : ''}
                 <div class="auth-logo">
                     <div class="logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
                     <span class="logo-text">CampusCare</span>

@@ -8,9 +8,11 @@ const App = {
     _landingTimer: null,  // holds the real-time polling interval for the landing page
     init() {
         DataStore.init();
-        // Initialize Supabase session state before loading any route
-        Auth.initSessionListener().then(() => {
-            this.router();
+        // Wait for Supabase configuration to initialize first
+        window.supabaseInitPromise.then(() => {
+            Auth.initSessionListener().then(() => {
+                this.router();
+            });
         });
         window.addEventListener('hashchange', () => this.router());
         // Global event delegation
@@ -102,7 +104,7 @@ const App = {
                 const id = hash.replace('#/admin/complaint/', '');
                 const complaint = await Complaints.getById(id);
                 let student = null;
-                if (complaint) {
+                if (complaint && window.supabase) {
                     // Fetch student avatar/email info
                     const { data } = await supabase.from('profiles').select('*').eq('id', complaint.studentId).maybeSingle();
                     if (data) {
@@ -209,8 +211,17 @@ const App = {
 
             const allComplaints = await Complaints.getAll();
             const s = Complaints.getStats(allComplaints);
-            const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
-            const studentCount = count || 0;
+            
+            let studentCount = 0;
+            if (window.supabase) {
+                try {
+                    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
+                    studentCount = count || 0;
+                } catch (e) {
+                    console.warn('Real-time query profiles count error:', e);
+                }
+            }
+
             const rate = s.total > 0 ? Math.round((s.resolved / s.total) * 100) : 0;
 
             // Stats strip
@@ -474,6 +485,12 @@ const App = {
         // Login form
         if (e.target.id === 'login-form') {
             e.preventDefault();
+            
+            if (window.SUPABASE_CONFIG_ERROR) {
+                Utils.showToast(window.SUPABASE_CONFIG_ERROR, 'error');
+                return;
+            }
+
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
 
@@ -489,6 +506,12 @@ const App = {
         // Register form
         if (e.target.id === 'register-form') {
             e.preventDefault();
+
+            if (window.SUPABASE_CONFIG_ERROR) {
+                Utils.showToast(window.SUPABASE_CONFIG_ERROR, 'error');
+                return;
+            }
+
             this.handleRegister();
             return;
         }
@@ -496,6 +519,12 @@ const App = {
         // Complaint form
         if (e.target.id === 'complaint-form') {
             e.preventDefault();
+
+            if (window.SUPABASE_CONFIG_ERROR) {
+                Utils.showToast(window.SUPABASE_CONFIG_ERROR, 'error');
+                return;
+            }
+
             this.handleComplaintSubmit();
             return;
         }
@@ -503,6 +532,12 @@ const App = {
         // Feedback form
         if (e.target.id === 'feedback-form') {
             e.preventDefault();
+
+            if (window.SUPABASE_CONFIG_ERROR) {
+                Utils.showToast(window.SUPABASE_CONFIG_ERROR, 'error');
+                return;
+            }
+
             this.handleFeedbackSubmit(e.target);
             return;
         }
@@ -510,6 +545,12 @@ const App = {
         // Profile edit form
         if (e.target.id === 'profile-edit-form') {
             e.preventDefault();
+
+            if (window.SUPABASE_CONFIG_ERROR) {
+                Utils.showToast(window.SUPABASE_CONFIG_ERROR, 'error');
+                return;
+            }
+
             this.handleProfileEdit();
             return;
         }

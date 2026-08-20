@@ -5,21 +5,27 @@
 
 const Admin = {
     async getDashboardStats() {
+        if (!window.supabase) {
+            return { total: 0, pending: 0, inProgress: 0, resolved: 0, urgent: 0 };
+        }
         const all = await Complaints.getAll();
         return Complaints.getStats(all);
     },
 
     async getRecentComplaints(limit = 5) {
+        if (!window.supabase) return [];
         const all = await Complaints.getAll();
         return Complaints.sort('date', 'desc', all).slice(0, limit);
     },
 
     async getUrgentComplaints() {
+        if (!window.supabase) return [];
         const all = await Complaints.getAll();
         return all.filter(c => c.priority === 'Urgent' || c.status === 'Pending');
     },
 
     async getComplaintsByCategory() {
+        if (!window.supabase) return [];
         const all = await Complaints.getAll();
         const counts = {};
         all.forEach(c => {
@@ -30,6 +36,7 @@ const Admin = {
     },
 
     async getComplaintsByDepartment() {
+        if (!window.supabase) return [];
         const all = await Complaints.getAll();
         const departments = DataStore.get(DataStore.KEYS.DEPARTMENTS) || [];
         return departments.map(dept => {
@@ -45,6 +52,7 @@ const Admin = {
     },
 
     async getComplaintsByMonth() {
+        if (!window.supabase) return [];
         const all = await Complaints.getAll();
         const months = {};
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -55,7 +63,6 @@ const Admin = {
             months[key] = (months[key] || 0) + 1;
         });
 
-        // Return last 6 months
         const result = [];
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -76,6 +83,7 @@ const Admin = {
     },
 
     async getAllStudents() {
+        if (!window.supabase) return [];
         try {
             const { data: profiles, error } = await supabase
                 .from('profiles')
@@ -114,22 +122,27 @@ const Admin = {
 
     // Admin actions
     async updateComplaintStatus(id, status) {
+        if (!window.supabase) return { success: false, message: 'Supabase is not configured.' };
         return Complaints.updateStatus(id, status);
     },
 
     async assignDepartment(id, department) {
+        if (!window.supabase) return { success: false, message: 'Supabase is not configured.' };
         return Complaints.assignDepartment(id, department);
     },
 
     async changePriority(id, priority) {
+        if (!window.supabase) return { success: false, message: 'Supabase is not configured.' };
         return Complaints.changePriority(id, priority);
     },
 
     async addAdminNote(id, note) {
+        if (!window.supabase) return { success: false, message: 'Supabase is not configured.' };
         return Complaints.addNote(id, note);
     },
 
     async resolveComplaint(id, resolution) {
+        if (!window.supabase) return { success: false, message: 'Supabase is not configured.' };
         return Complaints.addResolution(id, resolution);
     }
 };

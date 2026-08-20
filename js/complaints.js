@@ -31,7 +31,7 @@ const Complaints = {
             department: c.assigned_department || null,
             createdAt: c.created_at,
             updatedAt: c.updated_at,
-            image: null, // Image uploading is demo-only or future extension
+            image: null,
             contact: c.contact || '',
             notes: c.notes || [],
             feedback: c.feedback || null,
@@ -41,6 +41,10 @@ const Complaints = {
     },
 
     async create(data) {
+        if (!window.supabase) {
+            return { success: false, message: window.SUPABASE_CONFIG_ERROR || 'Database connection is not configured.' };
+        }
+
         const user = Auth.getCurrentUser();
         if (!user) return { success: false, message: 'Not logged in.' };
 
@@ -84,7 +88,6 @@ const Complaints = {
                 return { success: false, message: error.message };
             }
 
-            // Client-side notification dispatch (safely ignored if notifications.js is not async)
             try {
                 Notifications.notifyNewComplaint(this.mapToJS(insertedRow));
             } catch (e) {
@@ -98,6 +101,7 @@ const Complaints = {
     },
 
     async getAll() {
+        if (!window.supabase) return [];
         try {
             const { data, error } = await supabase
                 .from('complaints')
@@ -117,6 +121,7 @@ const Complaints = {
     },
 
     async getById(id) {
+        if (!window.supabase) return null;
         try {
             const { data, error } = await supabase
                 .from('complaints')
@@ -137,8 +142,8 @@ const Complaints = {
     },
 
     async getByStudent(userId) {
+        if (!window.supabase) return [];
         try {
-            // Note: Even if we pass userId, RLS policies enforce that students can only read their own rows.
             const { data, error } = await supabase
                 .from('complaints')
                 .select('*')
@@ -158,6 +163,10 @@ const Complaints = {
     },
 
     async update(id, fields) {
+        if (!window.supabase) {
+            return { success: false, message: window.SUPABASE_CONFIG_ERROR || 'Database connection is not configured.' };
+        }
+
         try {
             const { data, error } = await supabase
                 .from('complaints')
@@ -187,13 +196,11 @@ const Complaints = {
         const now = new Date().toISOString();
         const timeline = complaint.timeline || [];
 
-        // Mark reviewed (Step 1)
         if (newStatus !== 'Pending' && timeline[1] && !timeline[1].completed) {
             timeline[1].completed = true;
             timeline[1].date = now;
         }
 
-        // Mark work in progress (Step 3)
         if (newStatus === 'In Progress') {
             if (timeline[3] && !timeline[3].completed) {
                 timeline[3].completed = true;
@@ -201,7 +208,6 @@ const Complaints = {
             }
         }
 
-        // Mark resolved (Step 4)
         if (newStatus === 'Resolved') {
             timeline.forEach((step) => {
                 if (!step.completed) {
@@ -234,13 +240,11 @@ const Complaints = {
         const now = new Date().toISOString();
         const timeline = complaint.timeline || [];
 
-        // Mark reviewed if not already
         if (timeline[1] && !timeline[1].completed) {
             timeline[1].completed = true;
             timeline[1].date = now;
         }
 
-        // Mark assigned
         if (timeline[2]) {
             timeline[2].completed = true;
             timeline[2].date = now;
@@ -316,7 +320,6 @@ const Complaints = {
         return res;
     },
 
-    // ── Search, Filter, Sort (remains client-side on the fetched lists) ──
     search(query, complaints) {
         if (!query) return complaints;
         const q = query.toLowerCase();
