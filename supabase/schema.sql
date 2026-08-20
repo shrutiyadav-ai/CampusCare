@@ -39,9 +39,19 @@ create table public.complaints (
 alter table public.profiles enable row level security;
 alter table public.complaints enable row level security;
 
+-- Security Definer function to check admin status (bypasses RLS recursion)
+create or replace function public.is_admin(user_id uuid)
+returns boolean security definer as $$
+begin
+  return exists (
+    select 1 from public.profiles where id = user_id and role = 'admin'
+  );
+end;
+$$ language plpgsql;
+
 -- RLS Policies: profiles
 create policy "Users can view own profile"
-  on public.profiles for select using (auth.uid() = id);
+  on public.profiles for select using (auth.uid() = id or public.is_admin(auth.uid()));
 
 create policy "Users can update own profile"
   on public.profiles for update using (auth.uid() = id);
@@ -49,27 +59,12 @@ create policy "Users can update own profile"
 create policy "Users can insert own profile"
   on public.profiles for insert with check (auth.uid() = id);
 
-create policy "Admins can view all profiles"
-  on public.profiles for select
-  using (exists (
-    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
-  ));
-
 -- RLS Policies: complaints
-create policy "Students can view own complaints"
-  on public.complaints for select using (user_id = auth.uid());
+create policy "Students and Admins can view complaints"
+  on public.complaints for select using (user_id = auth.uid() or public.is_admin(auth.uid()));
 
 create policy "Students can insert own complaints"
   on public.complaints for insert with check (user_id = auth.uid());
 
-create policy "Admins can view all complaints"
-  on public.complaints for select
-  using (exists (
-    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
-  ));
-
 create policy "Admins can update any complaint"
-  on public.complaints for update
-  using (exists (
-    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
-  ));
+  on public.complaints for update using (public.is_admin(auth.uid()));
