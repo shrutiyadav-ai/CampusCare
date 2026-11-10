@@ -16,7 +16,7 @@
 <p align="center">
   <b>CampusCare</b> is a modern, responsive, SaaS-style Single Page Application (SPA) designed for universities and colleges to streamline student complaint submission, real-time status tracking, and administrative resolution workflows — all from a beautiful, dark-themed UI.
   <br/><br/>
-  🚀 <b><a href="https://campus-care-umber-six.vercel.app/">Try the Live Demo</a></b>
+  🚀 <b><a href="[https://campus-care-umber-six.vercel.app/](https://campus-care-spsu.vercel.app/)">Try the Live Demo</a></b>
 </p>
 
 ---
