@@ -268,9 +268,9 @@ const Views = {
 
                     <div class="form-group">
                         <label class="form-label" for="login-password">Password <span class="required">*</span></label>
-                        <div style="position: relative;">
+                        <div class="password-input-wrapper">
                             <input type="password" id="login-password" class="form-input" placeholder="Enter your password" autocomplete="current-password" required>
-                            <button type="button" class="toggle-password" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-tertiary);cursor:pointer;padding:4px;" aria-label="Toggle password visibility">
+                            <button type="button" class="toggle-password" aria-label="Toggle password visibility">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
@@ -382,12 +382,18 @@ const Views = {
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="reg-password">Password <span class="required">*</span></label>
-                            <input type="password" id="reg-password" class="form-input" placeholder="Min 6 characters" required>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="reg-password" class="form-input" placeholder="Min 6 characters" required>
+                                <button type="button" class="toggle-password" aria-label="Toggle password visibility"><i class="fa-solid fa-eye"></i></button>
+                            </div>
                             <div class="form-error" id="reg-password-error" style="display:none;"></div>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="reg-confirm-password">Confirm Password <span class="required">*</span></label>
-                            <input type="password" id="reg-confirm-password" class="form-input" placeholder="Re-enter password" required>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="reg-confirm-password" class="form-input" placeholder="Re-enter password" required>
+                                <button type="button" class="toggle-password" aria-label="Toggle password visibility"><i class="fa-solid fa-eye"></i></button>
+                            </div>
                             <div class="form-error" id="reg-confirm-password-error" style="display:none;"></div>
                         </div>
                     </div>
@@ -407,11 +413,11 @@ const Views = {
     // ════════════════════════════════════════════════════
     //  LAYOUT WRAPPER (Sidebar + Header + Content)
     // ════════════════════════════════════════════════════
-    layout(content, pageTitle, role) {
+    layout(content, pageTitle, role, urgentCount = 0) {
         const user = Auth.getCurrentUser();
         if (!user) return this.login();
 
-        const unreadCount = Notifications.getUnreadCount(user.id);
+        const unreadCount = Notifications.getUnreadCount(user.uid || user.id);
 
         return `
         <div class="app-layout">
@@ -428,7 +434,7 @@ const Views = {
                     </div>
                 </div>
                 <nav class="sidebar-nav">
-                    ${role === 'admin' ? this._adminNav(unreadCount) : this._studentNav(unreadCount)}
+                    ${role === 'admin' ? this._adminNav(unreadCount, urgentCount) : this._studentNav(unreadCount)}
                 </nav>
                 <div class="sidebar-footer">
                     <a href="#" class="sidebar-link logout-link" data-action="logout">
@@ -494,13 +500,13 @@ const Views = {
         </div>`;
     },
 
-    _adminNav(unreadCount) {
+    _adminNav(unreadCount, urgentCount = 0) {
         const hash = window.location.hash || '#/admin/dashboard';
-        const urgentCount = (Complaints.getAll() || []).filter(c => c.priority === 'Urgent' && c.status !== 'Resolved').length;
+        const safeUrgent = urgentCount || (Complaints._cache ? Complaints._cache.filter(c => c.priority === 'Urgent' && c.status !== 'Resolved').length : 0);
         const links = [
             { href: '#/admin/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
             { href: '#/admin/complaints', icon: 'fa-clipboard-list', label: 'All Complaints' },
-            { href: '#/admin/urgent', icon: 'fa-circle-exclamation', label: 'Urgent', badge: urgentCount },
+            { href: '#/admin/urgent', icon: 'fa-circle-exclamation', label: 'Urgent', badge: safeUrgent },
             { href: '#/admin/students', icon: 'fa-users', label: 'Students' },
             { href: '#/admin/departments', icon: 'fa-building-columns', label: 'Departments' },
             { href: '#/admin/reports', icon: 'fa-chart-bar', label: 'Reports' },
@@ -873,7 +879,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     studentNotifications() {
         const user = Auth.getCurrentUser();
-        const notifs = Notifications.getAll(user.id);
+        const notifs = Notifications.getAll(user.uid || user.id);
 
         const content = `
         <div class="page-header">
@@ -988,6 +994,35 @@ const Views = {
                         </div>
                     </form>
                 </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <div class="card-header">
+                <div class="detail-section-title" style="margin-bottom:0;"><i class="fa-solid fa-shield-halved"></i> Security & Password</div>
+            </div>
+            <div class="card-body">
+                <form id="change-password-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="new-password">New Password</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="new-password" class="form-input" placeholder="At least 6 characters" minlength="6" required>
+                                <button type="button" class="toggle-password" aria-label="Toggle password visibility"><i class="fa-solid fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="confirm-new-password">Confirm New Password</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="confirm-new-password" class="form-input" placeholder="Repeat new password" minlength="6" required>
+                                <button type="button" class="toggle-password" aria-label="Toggle password visibility"><i class="fa-solid fa-eye"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm" style="margin-top:12px;">
+                        <i class="fa-solid fa-key"></i> Update Password
+                    </button>
+                </form>
             </div>
         </div>`;
 
@@ -1157,7 +1192,7 @@ const Views = {
                         </tr>
                     </thead>
                     <tbody>
-                        ${recent.map(c => `
+                        ${recent.length > 0 ? recent.map(c => `
                         <tr>
                             <td data-label="ID"><strong style="color:var(--primary-600);font-size:0.8125rem;">${c.id}</strong></td>
                             <td data-label="Title" class="complaint-title-cell">${Utils.escapeHtml(c.title)}</td>
@@ -1168,7 +1203,7 @@ const Views = {
                             <td data-label="Date">${Utils.formatDate(c.createdAt)}</td>
                             <td data-label="Action"><a href="#/admin/complaint/${c.id}" class="btn btn-outline btn-sm">Manage</a></td>
                         </tr>
-                        `).join('')}
+                        `).join('') : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-tertiary);">No complaints submitted yet.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -1253,7 +1288,7 @@ const Views = {
                             <div class="header-avatar" style="width:44px;height:44px;font-size:0.9375rem;">${student ? student.avatar : '??'}</div>
                             <div>
                                 <div style="font-weight:600;font-size:0.9375rem;">${Utils.escapeHtml(complaint.studentName)}</div>
-                                <div style="font-size:0.8125rem;color:var(--text-tertiary);">${complaint.studentId} • ${student ? student.email : ''}</div>
+                                <div style="font-size:0.8125rem;color:var(--text-tertiary);">${(student && student.studentId) ? student.studentId : complaint.studentId} • ${student ? student.email : ''}</div>
                             </div>
                         </div>
                     </div>
@@ -1496,6 +1531,7 @@ const Views = {
             <h2>Departments</h2>
         </div>
 
+        ${departments.length > 0 ? `
         <div class="dept-grid stagger">
             ${departments.map(d => `
                 <div class="dept-card card">
@@ -1526,7 +1562,14 @@ const Views = {
                     </div>
                 </div>
             `).join('')}
-        </div>`;
+        </div>` : `
+        <div class="card">
+            <div class="empty-state">
+                <i class="fa-solid fa-building-columns"></i>
+                <h3>No departments found</h3>
+                <p>Campus departments are currently being configured.</p>
+            </div>
+        </div>`}`;
 
         return this.layout(content, 'Departments', 'admin');
     },
@@ -1565,7 +1608,7 @@ const Views = {
                             <tr><th>Department</th><th>Total</th><th>Pending</th><th>In Progress</th><th>Resolved</th><th>Resolution Rate</th></tr>
                         </thead>
                         <tbody>
-                            ${departments.filter(d => d.total > 0).map(d => {
+                            ${departments.filter(d => d.total > 0).length > 0 ? departments.filter(d => d.total > 0).map(d => {
                                 const rate = d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0;
                                 return `
                                 <tr>
@@ -1583,7 +1626,7 @@ const Views = {
                                         </div>
                                     </td>
                                 </tr>`;
-                            }).join('')}
+                            }).join('') : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-tertiary);">No department complaints recorded yet.</td></tr>'}
                         </tbody>
                     </table>
                 </div>
@@ -1598,7 +1641,7 @@ const Views = {
     // ════════════════════════════════════════════════════
     adminNotifications() {
         const user = Auth.getCurrentUser();
-        const notifs = Notifications.getAll(user.id);
+        const notifs = Notifications.getAll(user.uid || user.id);
 
         const content = `
         <div class="page-header">

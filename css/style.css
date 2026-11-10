@@ -839,6 +839,33 @@ small { font-size: 0.8125rem; color: var(--text-tertiary); }
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+.password-input-wrapper .form-input {
+    padding-right: 40px;
+}
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+}
+.toggle-password:hover {
+    color: var(--text-primary);
+}
+
 .form-textarea {
     resize: vertical;
     min-height: 100px;

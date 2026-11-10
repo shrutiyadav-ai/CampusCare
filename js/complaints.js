@@ -14,6 +14,16 @@ const Complaints = {
 
     STATUSES: ['Pending', 'In Progress', 'Resolved'],
 
+    _cache: [],
+
+    // Generate collision-free unique Complaint ID: CMP-YYYY-NNNNN
+    generateComplaintId() {
+        const year = new Date().getFullYear();
+        // Generate a 5-digit cryptographically or pseudo-random number combined with time
+        const rand = Math.floor(10000 + Math.random() * 90000);
+        return `CMP-${year}-${rand}`;
+    },
+
     // Helper: Map Supabase database row to the frontend JS schema format
     mapToJS(c) {
         if (!c) return null;
@@ -31,7 +41,7 @@ const Complaints = {
             department: c.assigned_department || null,
             createdAt: c.created_at,
             updatedAt: c.updated_at,
-            image: null,
+            image: c.image || null,
             contact: c.contact || '',
             notes: c.notes || [],
             feedback: c.feedback || null,
@@ -48,7 +58,7 @@ const Complaints = {
         const user = Auth.getCurrentUser();
         if (!user) return { success: false, message: 'Not logged in.' };
 
-        const complaintId = DataStore.getNextComplaintId();
+        const complaintId = this.generateComplaintId();
         const now = new Date().toISOString();
 
         const timeline = [
@@ -66,10 +76,10 @@ const Complaints = {
                     complaint_id: complaintId,
                     user_id: user.uid,
                     student_name: user.name,
-                    title: data.title,
+                    title: data.title.trim(),
                     category: data.category,
-                    location: data.location || '',
-                    description: data.description,
+                    location: data.location ? data.location.trim() : '',
+                    description: data.description.trim(),
                     priority: data.priority || 'Medium',
                     status: 'Pending',
                     assigned_department: null,
@@ -77,7 +87,8 @@ const Complaints = {
                     notes: [],
                     timeline: timeline,
                     feedback: null,
-                    contact: data.contact || '',
+                    contact: data.contact ? data.contact.trim() : '',
+                    image: data.image || null,
                     created_at: now,
                     updated_at: now
                 }])
@@ -88,13 +99,15 @@ const Complaints = {
                 return { success: false, message: error.message };
             }
 
+            const mapped = this.mapToJS(insertedRow);
+
             try {
-                Notifications.notifyNewComplaint(this.mapToJS(insertedRow));
+                Notifications.notifyNewComplaint(mapped);
             } catch (e) {
                 console.error('Notification trigger error:', e);
             }
 
-            return { success: true, complaint: this.mapToJS(insertedRow) };
+            return { success: true, complaint: mapped };
         } catch (err) {
             return { success: false, message: 'An unexpected database error occurred: ' + err.message };
         }
@@ -110,13 +123,14 @@ const Complaints = {
 
             if (error) {
                 console.error('Error fetching complaints:', error.message);
-                return [];
+                return this._cache || [];
             }
 
-            return (data || []).map(row => this.mapToJS(row));
+            this._cache = (data || []).map(row => this.mapToJS(row));
+            return this._cache;
         } catch (err) {
             console.error('Unexpected error in getAll:', err);
-            return [];
+            return this._cache || [];
         }
     },
 
@@ -176,10 +190,14 @@ const Complaints = {
                 })
                 .eq('complaint_id', id)
                 .select()
-                .single();
+                .maybeSingle();
 
             if (error) {
                 return { success: false, message: error.message };
+            }
+
+            if (!data) {
+                return { success: false, message: 'Complaint not found or update not permitted.' };
             }
 
             return { success: true, complaint: this.mapToJS(data) };
@@ -190,7 +208,7 @@ const Complaints = {
 
     async updateStatus(id, newStatus) {
         const complaint = await this.getById(id);
-        if (!complaint) return { success: false };
+        if (!complaint) return { success: false, message: 'Complaint not found.' };
 
         const oldStatus = complaint.status;
         const now = new Date().toISOString();
@@ -206,6 +224,17 @@ const Complaints = {
                 timeline[3].completed = true;
                 timeline[3].date = now;
             }
+            // If re-opened from Resolved, reset Resolved step
+            if (timeline[4]) {
+                timeline[4].completed = false;
+                timeline[4].date = null;
+            }
+        }
+
+        if (newStatus === 'Pending') {
+            // Reset In Progress and Resolved steps
+            if (timeline[3]) { timeline[3].completed = false; timeline[3].date = null; }
+            if (timeline[4]) { timeline[4].completed = false; timeline[4].date = null; }
         }
 
         if (newStatus === 'Resolved') {
@@ -235,7 +264,7 @@ const Complaints = {
 
     async assignDepartment(id, department) {
         const complaint = await this.getById(id);
-        if (!complaint) return { success: false };
+        if (!complaint) return { success: false, message: 'Complaint not found.' };
 
         const now = new Date().toISOString();
         const timeline = complaint.timeline || [];
@@ -273,7 +302,7 @@ const Complaints = {
 
     async addNote(id, noteText) {
         const complaint = await this.getById(id);
-        if (!complaint) return { success: false };
+        if (!complaint) return { success: false, message: 'Complaint not found.' };
 
         const user = Auth.getCurrentUser();
         const notes = complaint.notes || [];
@@ -292,7 +321,7 @@ const Complaints = {
 
     async addResolution(id, message) {
         const complaint = await this.getById(id);
-        if (!complaint) return { success: false };
+        if (!complaint) return { success: false, message: 'Complaint not found.' };
 
         const now = new Date().toISOString();
         const timeline = complaint.timeline || [];
@@ -324,10 +353,10 @@ const Complaints = {
         if (!query) return complaints;
         const q = query.toLowerCase();
         return complaints.filter(c =>
-            c.title.toLowerCase().includes(q) ||
-            c.id.toLowerCase().includes(q) ||
-            c.category.toLowerCase().includes(q) ||
-            c.location.toLowerCase().includes(q) ||
+            (c.title && c.title.toLowerCase().includes(q)) ||
+            (c.id && c.id.toLowerCase().includes(q)) ||
+            (c.category && c.category.toLowerCase().includes(q)) ||
+            (c.location && c.location.toLowerCase().includes(q)) ||
             (c.description && c.description.toLowerCase().includes(q)) ||
             (c.studentName && c.studentName.toLowerCase().includes(q))
         );

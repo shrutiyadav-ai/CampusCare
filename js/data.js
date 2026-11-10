@@ -52,11 +52,9 @@ const DataStore = {
     },
 
     getNextComplaintId() {
-        let counter = this.get(this.KEYS.COUNTER) || 100;
-        counter++;
-        this.set(this.KEYS.COUNTER, counter);
         const year = new Date().getFullYear();
-        return `CMP-${year}-${String(counter).padStart(5, '0')}`;
+        const rand = Math.floor(10000 + Math.random() * 90000);
+        return `CMP-${year}-${rand}`;
     },
 
     // ── Default Departments ─────────────────────────────

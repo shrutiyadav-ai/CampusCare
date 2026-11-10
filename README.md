@@ -104,30 +104,27 @@
 CampusCare uses a secure, role-based authentication system:
 
 ### 🛡️ Admin Login
+Admins authenticate securely through Supabase Authentication. The admin role is verified directly from the trusted PostgreSQL database (`public.profiles.role = 'admin'`).
 
-<details>
-<summary>🔑 View Admin Credentials</summary>
-
-| Field | Value |
-|-------|-------|
-| **Username** | `admin` |
-| **Password** | `Spsu@2011` |
-
-</details>
+To create an admin:
+1. Create or register an account in Supabase Auth (or via the portal).
+2. Execute the helper SQL function in the Supabase SQL Editor:
+   ```sql
+   select public.make_user_admin('your-admin-email@university.edu');
+   ```
 
 ### 🎓 Student Login
-Students register their own accounts via the **Register** page. Fill in:
+Students register their own accounts via the **Register** page with:
 - Full Name, Student ID, Email, Password
-- Phone, Course, Year (optional)
-
-> **Note**: No demo/fake credentials are used. Students must register to access the portal.
+- Phone, Course, Year
 
 ### Authentication Features
-- ✅ Role-based access control (Student vs Admin routes)
-- ✅ Route guards — unauthorized access redirects to login
-- ✅ Session persistence via localStorage
-- ✅ Password visibility toggle
-- ✅ Profile editing with password change support
+- ✅ Secure Supabase Auth & JWT session persistence
+- ✅ Database-enforced Role-Based Access Control (RBAC) with Row-Level Security (RLS)
+- ✅ Anti-escalation triggers preventing students from modifying roles or unauthorized complaint statuses
+- ✅ Strict route guards preventing unauthorized navigation
+- ✅ Duplicate student ID and duplicate email validation
+- ✅ Real-time session restoration and clean sign out
 
 ---
 

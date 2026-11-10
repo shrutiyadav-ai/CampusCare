@@ -23,57 +23,117 @@ const Auth = {
                     return;
                 }
 
-                supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (session && session.user) {
-                        try {
-                            const { data: profile, error } = await supabase
-                                .from('profiles')
-                                .select('*')
-                                .eq('id', session.user.id)
-                                .maybeSingle();
-
-                            if (profile) {
-                                Auth._currentUser = {
-                                    id: profile.student_id || 'STU_UNKNOWN',
-                                    uid: profile.id,
-                                    name: profile.full_name,
-                                    email: profile.email,
-                                    phone: profile.phone || '',
-                                    course: profile.course || '',
-                                    year: profile.year || '',
-                                    role: profile.role,
-                                    avatar: profile.avatar || 'U',
-                                    createdAt: profile.created_at
-                                };
-                            } else {
-                                // Session exists but profile not created yet, or admin user created directly via auth dashboard
-                                const isAdmin = session.user.email.includes('admin');
-                                Auth._currentUser = {
-                                    id: isAdmin ? 'ADM001' : 'STU_TEMP',
-                                    uid: session.user.id,
-                                    name: isAdmin ? 'System Admin' : session.user.email.split('@')[0],
-                                    email: session.user.email,
-                                    phone: '',
-                                    course: '',
-                                    year: '',
-                                    role: isAdmin ? 'admin' : 'student',
-                                    avatar: isAdmin ? 'AD' : 'US',
-                                    createdAt: session.user.created_at
-                                };
-                            }
-                        } catch (err) {
-                            console.error('Error fetching user profile:', err);
-                            Auth._currentUser = null;
-                        }
-                    } else {
-                        Auth._currentUser = null;
-                    }
+                // Initial session check
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    this._syncUserSession(session).then(() => {
+                        Auth._initialized = true;
+                        resolve();
+                    });
+                }).catch(() => {
+                    Auth._currentUser = null;
                     Auth._initialized = true;
                     resolve();
+                });
+
+                // Listen for subsequent auth state changes
+                supabase.auth.onAuthStateChange(async (event, session) => {
+                    await this._syncUserSession(session);
+                    Auth._initialized = true;
+                    // Trigger a re-render if user logged out or session changed
+                    if (event === 'SIGNED_OUT') {
+                        Auth._currentUser = null;
+                        if (!['#/', '', '#/login', '#/register'].includes(window.location.hash)) {
+                            window.location.hash = '#/login';
+                        }
+                    }
                 });
             });
         })();
         return this._initPromise;
+    },
+
+    // Helper: Safely resolve and map user profile from database
+    async _syncUserSession(session) {
+        if (!session || !session.user) {
+            this._currentUser = null;
+            return;
+        }
+
+        const user = session.user;
+
+        try {
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            if (profile) {
+                this._currentUser = {
+                    id: profile.student_id || user.user_metadata?.student_id || 'STU_' + user.id.slice(0, 6).toUpperCase(),
+                    uid: profile.id,
+                    name: profile.full_name || user.user_metadata?.full_name || user.email.split('@')[0],
+                    email: profile.email || user.email,
+                    phone: profile.phone || '',
+                    course: profile.course || '',
+                    year: profile.year || '',
+                    role: profile.role === 'admin' ? 'admin' : 'student',
+                    avatar: profile.avatar || (profile.full_name ? profile.full_name.slice(0, 2).toUpperCase() : 'U'),
+                    createdAt: profile.created_at || user.created_at
+                };
+            } else {
+                // Profile not created yet (e.g. email confirmation pending or direct Auth signup)
+                // Default to 'student' role. Admin role MUST be explicitly granted in database profiles table.
+                const fallbackName = user.user_metadata?.full_name || user.email.split('@')[0];
+                const fallbackStudentId = user.user_metadata?.student_id || 'STU_' + user.id.slice(0, 6).toUpperCase();
+                const avatar = fallbackName.slice(0, 2).toUpperCase();
+
+                this._currentUser = {
+                    id: fallbackStudentId,
+                    uid: user.id,
+                    name: fallbackName,
+                    email: user.email,
+                    phone: user.user_metadata?.phone || '',
+                    course: user.user_metadata?.course || '',
+                    year: user.user_metadata?.year || '',
+                    role: 'student',
+                    avatar: avatar,
+                    createdAt: user.created_at
+                };
+
+                // Attempt to lazily populate missing profile row
+                try {
+                    await supabase.from('profiles').insert([{
+                        id: user.id,
+                        full_name: fallbackName,
+                        student_id: fallbackStudentId,
+                        email: user.email,
+                        phone: user.user_metadata?.phone || '',
+                        course: user.user_metadata?.course || '',
+                        year: user.user_metadata?.year || '',
+                        role: 'student',
+                        avatar: avatar
+                    }]);
+                } catch (insertErr) {
+                    // Ignored if handled by database trigger
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching user profile:', err);
+            // Default to safe student session if basic auth user exists
+            this._currentUser = {
+                id: 'STU_' + user.id.slice(0, 6).toUpperCase(),
+                uid: user.id,
+                name: user.email.split('@')[0],
+                email: user.email,
+                phone: '',
+                course: '',
+                year: '',
+                role: 'student',
+                avatar: 'U',
+                createdAt: user.created_at
+            };
+        }
     },
 
     async ensureInitialized() {
@@ -106,7 +166,7 @@ const Auth = {
 
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
-                email: email,
+                email: email.trim(),
                 password: password
             });
 
@@ -114,44 +174,15 @@ const Auth = {
                 return { success: false, message: error.message };
             }
 
-            const { data: profile, error: profError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', data.user.id)
-                .maybeSingle();
-
-            if (profError) {
-                return { success: false, message: 'Login succeeded but failed to fetch profile: ' + profError.message };
+            if (!data.user) {
+                return { success: false, message: 'Authentication failed. Please check your credentials.' };
             }
 
-            if (profile) {
-                this._currentUser = {
-                    id: profile.student_id || 'STU_UNKNOWN',
-                    uid: profile.id,
-                    name: profile.full_name,
-                    email: profile.email,
-                    phone: profile.phone || '',
-                    course: profile.course || '',
-                    year: profile.year || '',
-                    role: profile.role,
-                    avatar: profile.avatar || 'U',
-                    createdAt: profile.created_at
-                };
-            } else {
-                // If admin logs in and has no profile, create a default in memory
-                const isAdmin = data.user.email.includes('admin') || data.user.email === 'admin@university.edu';
-                this._currentUser = {
-                    id: isAdmin ? 'ADM001' : 'STU_TEMP',
-                    uid: data.user.id,
-                    name: isAdmin ? 'System Admin' : data.user.email.split('@')[0],
-                    email: data.user.email,
-                    phone: '',
-                    course: '',
-                    year: '',
-                    role: isAdmin ? 'admin' : 'student',
-                    avatar: isAdmin ? 'AD' : 'US',
-                    createdAt: data.user.created_at
-                };
+            // Sync user session and profile from database
+            await this._syncUserSession(data.session);
+
+            if (!this._currentUser) {
+                return { success: false, message: 'Login succeeded, but profile could not be loaded.' };
             }
 
             return { success: true, user: this._currentUser };
@@ -166,29 +197,36 @@ const Auth = {
         }
 
         try {
-            // Check student ID uniqueness in profiles table first
-            const { data: existingStudent, error: checkError } = await supabase
-                .from('profiles')
-                .select('student_id')
-                .eq('student_id', userData.studentId)
-                .maybeSingle();
+            // Check student ID uniqueness safely via RPC (or query fallback)
+            try {
+                const { data: idTaken } = await supabase.rpc('check_student_id_exists', {
+                    check_id: userData.studentId.trim()
+                });
+                if (idTaken) {
+                    return { success: false, message: 'Student ID is already registered.' };
+                }
+            } catch (rpcErr) {
+                // Fallback to select check if RPC not yet created
+                const { data: existingStudent } = await supabase
+                    .from('profiles')
+                    .select('student_id')
+                    .eq('student_id', userData.studentId.trim())
+                    .maybeSingle();
 
-            if (checkError) {
-                return { success: false, message: 'Database check failed: ' + checkError.message };
-            }
-            if (existingStudent) {
-                return { success: false, message: 'Student ID is already registered.' };
+                if (existingStudent) {
+                    return { success: false, message: 'Student ID is already registered.' };
+                }
             }
 
             // Create Supabase Auth Account
             const { data, error } = await supabase.auth.signUp({
-                email: userData.email,
+                email: userData.email.trim(),
                 password: userData.password,
                 options: {
                     data: {
-                        full_name: userData.name,
-                        student_id: userData.studentId,
-                        phone: userData.phone || '',
+                        full_name: userData.name.trim(),
+                        student_id: userData.studentId.trim(),
+                        phone: userData.phone ? userData.phone.trim() : '',
                         course: userData.course || '',
                         year: userData.year || ''
                     }
@@ -201,35 +239,37 @@ const Auth = {
 
             const user = data.user;
             if (!user) {
-                return { success: false, message: 'Registration failed. No auth user created.' };
+                return { success: false, message: 'Registration failed. No account created.' };
+            }
+
+            // In Supabase, if email is already registered and email confirmations are active,
+            // an empty identities array is returned to prevent email enumeration.
+            if (user.identities && user.identities.length === 0) {
+                return { success: false, message: 'An account with this email already exists. Please log in.' };
             }
 
             const avatar = userData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-            // Insert/Upsert details into profiles table (fail-safe fallback)
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .upsert({
-                    id: user.id,
-                    full_name: userData.name,
-                    student_id: userData.studentId,
-                    email: userData.email,
-                    phone: userData.phone || '',
-                    course: userData.course || '',
-                    year: userData.year || '',
-                    role: 'student',
-                    avatar: avatar
-                });
-
-            if (profileError) {
-                if (!data.session) {
-                    // Email verification is enabled. The database trigger will have successfully created the profile.
-                    return { success: true, message: 'Registration successful! Please check your email to confirm your account.' };
-                }
-                return { success: false, message: 'Auth account created, but profile save failed: ' + profileError.message };
+            // Attempt to ensure profile row exists (if DB trigger didn't already create it)
+            if (data.session) {
+                await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: user.id,
+                        full_name: userData.name.trim(),
+                        student_id: userData.studentId.trim(),
+                        email: userData.email.trim(),
+                        phone: userData.phone ? userData.phone.trim() : '',
+                        course: userData.course || '',
+                        year: userData.year || '',
+                        role: 'student',
+                        avatar: avatar
+                    });
             }
 
-            const msg = data.session ? 'Registration successful! You can now log in.' : 'Registration successful! Please confirm your email.';
+            const msg = data.session 
+                ? 'Registration successful! You can now log in.' 
+                : 'Registration successful! Please check your email to confirm your account before logging in.';
             return { success: true, message: msg };
         } catch (err) {
             return { success: false, message: 'An unexpected error occurred during registration: ' + err.message };
@@ -237,11 +277,12 @@ const Auth = {
     },
 
     async logout() {
-        if (!window.supabase) return;
-        try {
-            await supabase.auth.signOut();
-        } catch (e) {
-            console.error('Sign out error:', e);
+        if (window.supabase) {
+            try {
+                await supabase.auth.signOut();
+            } catch (e) {
+                console.error('Sign out error:', e);
+            }
         }
         this._currentUser = null;
     },
@@ -258,10 +299,10 @@ const Auth = {
             const { error } = await supabase
                 .from('profiles')
                 .update({
-                    full_name: data.name,
-                    phone: data.phone,
-                    course: data.course,
-                    year: data.year,
+                    full_name: data.name.trim(),
+                    phone: data.phone ? data.phone.trim() : '',
+                    course: data.course || '',
+                    year: data.year || '',
                     avatar: avatar,
                     updated_at: new Date().toISOString()
                 })
@@ -271,10 +312,10 @@ const Auth = {
                 return { success: false, message: error.message };
             }
 
-            this._currentUser.name = data.name;
-            this._currentUser.phone = data.phone;
-            this._currentUser.course = data.course;
-            this._currentUser.year = data.year;
+            this._currentUser.name = data.name.trim();
+            this._currentUser.phone = data.phone ? data.phone.trim() : '';
+            this._currentUser.course = data.course || '';
+            this._currentUser.year = data.year || '';
             this._currentUser.avatar = avatar;
 
             return { success: true, message: 'Profile updated successfully.' };

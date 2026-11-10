@@ -49,6 +49,13 @@ const App = {
             return;
         }
 
+        // Redirect already logged-in users away from auth pages
+        if (Auth.isLoggedIn() && (hash === '#/login' || hash === '#/register')) {
+            const role = Auth.isAdmin() ? 'admin' : 'student';
+            window.location.hash = `#/${role}/dashboard`;
+            return;
+        }
+
         // Show loading indicator in app container while fetching dashboard/data
         const needsLoading = ['#/student/dashboard', '#/student/complaints', '#/admin/dashboard', '#/admin/complaints', '#/admin/urgent', '#/admin/students', '#/admin/departments', '#/admin/reports'].includes(hash) || hash.startsWith('#/student/complaint/') || hash.startsWith('#/admin/complaint/');
         if (needsLoading && app.innerHTML.trim() !== '') {
@@ -84,8 +91,14 @@ const App = {
             } else if (hash.startsWith('#/student/complaint/')) {
                 const id = hash.replace('#/student/complaint/', '');
                 const complaint = await Complaints.getById(id);
-                html = Views.complaintDetail(complaint);
+                // Defense-in-depth: Ensure student only views their own complaint
+                if (complaint && complaint.studentId !== user.uid && !Auth.isAdmin()) {
+                    html = Views.complaintDetail(null);
+                } else {
+                    html = Views.complaintDetail(complaint);
+                }
             } else if (hash === '#/student/notifications') {
+                await Notifications.fetch(user.uid);
                 html = Views.studentNotifications();
             } else if (hash === '#/student/profile') {
                 html = Views.studentProfile();
@@ -94,8 +107,9 @@ const App = {
             }
             // Admin routes
             else if (hash === '#/admin/dashboard') {
-                const stats = await Admin.getDashboardStats();
-                const recent = await Admin.getRecentComplaints(5);
+                const all = await Complaints.getAll();
+                const stats = await Admin.getDashboardStats(all);
+                const recent = await Admin.getRecentComplaints(5, all);
                 html = Views.adminDashboard(stats, recent);
             } else if (hash === '#/admin/complaints') {
                 const complaints = await Complaints.getAll();
@@ -105,12 +119,15 @@ const App = {
                 const complaint = await Complaints.getById(id);
                 let student = null;
                 if (complaint && window.supabase) {
-                    // Fetch student avatar/email info
                     const { data } = await supabase.from('profiles').select('*').eq('id', complaint.studentId).maybeSingle();
                     if (data) {
                         student = {
-                            avatar: data.avatar || 'U',
-                            email: data.email
+                            avatar: data.avatar || (data.full_name ? data.full_name.slice(0, 2).toUpperCase() : 'U'),
+                            email: data.email,
+                            studentId: data.student_id,
+                            phone: data.phone,
+                            course: data.course,
+                            year: data.year
                         };
                     }
                 }
@@ -125,10 +142,12 @@ const App = {
                 const depts = await Admin.getComplaintsByDepartment();
                 html = Views.adminDepartments(depts);
             } else if (hash === '#/admin/reports') {
-                const stats = await Admin.getDashboardStats();
-                const depts = await Admin.getComplaintsByDepartment();
+                const all = await Complaints.getAll();
+                const stats = await Admin.getDashboardStats(all);
+                const depts = await Admin.getComplaintsByDepartment(all);
                 html = Views.adminReports(stats, depts);
             } else if (hash === '#/admin/notifications') {
+                await Notifications.fetch(user.uid);
                 html = Views.adminNotifications();
             } else if (hash === '#/admin/settings') {
                 html = Views.adminSettings();
@@ -204,21 +223,38 @@ const App = {
         const refresh = async () => {
             // Bail out if landing page is no longer rendered
             if (!document.getElementById('rt-stat-total')) {
-                clearInterval(this._landingTimer);
-                this._landingTimer = null;
+                if (this._landingTimer) {
+                    clearInterval(this._landingTimer);
+                    this._landingTimer = null;
+                }
                 return;
             }
 
-            const allComplaints = await Complaints.getAll();
-            const s = Complaints.getStats(allComplaints);
-            
+            let s = { total: 0, pending: 0, inProgress: 0, resolved: 0, urgent: 0 };
             let studentCount = 0;
+
             if (window.supabase) {
                 try {
-                    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
-                    studentCount = count || 0;
+                    // Try the secure definer RPC function first
+                    const { data: statsData, error: rpcError } = await supabase.rpc('get_platform_stats');
+                    if (!rpcError && statsData) {
+                        s = {
+                            total: statsData.total || 0,
+                            pending: statsData.pending || 0,
+                            inProgress: statsData.inProgress || 0,
+                            resolved: statsData.resolved || 0,
+                            urgent: statsData.urgent || 0
+                        };
+                        studentCount = statsData.studentCount || 0;
+                    } else {
+                        // Fallback: try reading complaints if permitted
+                        const allComplaints = await Complaints.getAll();
+                        s = Complaints.getStats(allComplaints);
+                    }
                 } catch (e) {
-                    console.warn('Real-time query profiles count error:', e);
+                    // Safe fallback
+                    const allComplaints = await Complaints.getAll();
+                    s = Complaints.getStats(allComplaints);
                 }
             }
 
@@ -237,9 +273,9 @@ const App = {
             patch('rt-resolved',   s.resolved + ' done');
         };
 
-        // Run once immediately, then every 3 seconds
+        // Run once immediately, then periodically
         refresh();
-        this._landingTimer = setInterval(refresh, 3000);
+        this._landingTimer = setInterval(refresh, 8000);
     },
 
     async renderDashboardCharts() {
@@ -425,10 +461,14 @@ const App = {
             }
             e.preventDefault();
             this.setLoading(btn, true, 'Adding...');
-            Admin.addAdminNote(compId, text).then(() => {
+            Admin.addAdminNote(compId, text).then((res) => {
                 this.setLoading(btn, false);
-                Utils.showToast('Note added successfully.', 'success');
-                this.router();
+                if (res && res.success === false) {
+                    Utils.showToast(res.message || 'Failed to add note.', 'error');
+                } else {
+                    Utils.showToast('Note added successfully.', 'success');
+                    this.router();
+                }
             }).catch(err => {
                 this.setLoading(btn, false);
                 Utils.showToast('Failed to add note: ' + err.message, 'error');
@@ -448,10 +488,14 @@ const App = {
             }
             Utils.showConfirm('Are you sure you want to resolve this complaint?', () => {
                 this.setLoading(btn, true, 'Resolving...');
-                Admin.resolveComplaint(compId, text).then(() => {
+                Admin.resolveComplaint(compId, text).then((res) => {
                     this.setLoading(btn, false);
-                    Utils.showToast('Complaint resolved successfully!', 'success');
-                    this.router();
+                    if (res && res.success === false) {
+                        Utils.showToast(res.message || 'Failed to resolve complaint.', 'error');
+                    } else {
+                        Utils.showToast('Complaint resolved successfully!', 'success');
+                        this.router();
+                    }
                 }).catch(err => {
                     this.setLoading(btn, false);
                     Utils.showToast('Failed to resolve complaint: ' + err.message, 'error');
@@ -477,6 +521,19 @@ const App = {
         // Dark mode toggle in settings
         if (e.target.closest('#dark-mode-toggle')) {
             this.toggleTheme();
+            return;
+        }
+
+        // Reset data action
+        if (target && target.dataset.action === 'reset-data') {
+            e.preventDefault();
+            Utils.showConfirm('This will clear your local browser notifications and reset UI preferences. Cloud database records in Supabase remain safe and intact. Continue?', () => {
+                localStorage.removeItem(DataStore.KEYS.NOTIFICATIONS);
+                DataStore.set(DataStore.KEYS.THEME, 'light');
+                document.documentElement.setAttribute('data-theme', 'light');
+                Utils.showToast('Local preferences and cache reset successfully.', 'success');
+                this.router();
+            }, 'Reset Local Preferences');
             return;
         }
     },
@@ -554,12 +611,33 @@ const App = {
             this.handleProfileEdit();
             return;
         }
+
+        // Change password form
+        if (e.target.id === 'change-password-form') {
+            e.preventDefault();
+
+            if (window.SUPABASE_CONFIG_ERROR) {
+                Utils.showToast(window.SUPABASE_CONFIG_ERROR, 'error');
+                return;
+            }
+
+            this.handleChangePassword(e.target);
+            return;
+        }
     },
 
     handleChange(e) {
         // File input
         if (e.target.id === 'comp-file') {
             this.handleFileSelect(e.target);
+            return;
+        }
+
+        // Dropdown filters (trigger table filter on change)
+        if (e.target.classList.contains('filter-select') ||
+            e.target.id === 'filter-category' || e.target.id === 'filter-status' ||
+            e.target.id === 'filter-priority' || e.target.id === 'sort-by') {
+            this.filterComplaints();
             return;
         }
     },
@@ -663,6 +741,9 @@ const App = {
         const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
         this.setLoading(submitBtn, true, 'Submitting...');
 
+        const fileInput = document.getElementById('comp-file');
+        const fileName = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : null;
+
         const result = await Complaints.create({
             title: document.getElementById('comp-title').value.trim(),
             category: document.getElementById('comp-category').value,
@@ -671,7 +752,7 @@ const App = {
             priority: document.getElementById('comp-priority').value,
             date: document.getElementById('comp-date').value,
             contact: document.getElementById('comp-contact').value.trim(),
-            image: null
+            image: fileName
         });
 
         this.setLoading(submitBtn, false);
@@ -705,10 +786,15 @@ const App = {
         const submitBtn = form.querySelector('button[type="submit"]');
         this.setLoading(submitBtn, true, 'Submitting feedback...');
 
-        await Complaints.addFeedback(compId, { rating, comment });
+        const res = await Complaints.addFeedback(compId, { rating, comment });
         this.setLoading(submitBtn, false);
-        Utils.showToast('Thank you for your feedback!', 'success');
-        this.router();
+
+        if (res && res.success === false) {
+            Utils.showToast(res.message || 'Failed to submit feedback.', 'error');
+        } else {
+            Utils.showToast('Thank you for your feedback!', 'success');
+            this.router();
+        }
     },
 
     // ── Profile Edit ────────────────────────────────────
@@ -734,6 +820,44 @@ const App = {
         }
     },
 
+    // ── Change Password ─────────────────────────────────
+    async handleChangePassword(form) {
+        const newPass = document.getElementById('new-password').value;
+        const confirmPass = document.getElementById('confirm-new-password').value;
+
+        if (!newPass || newPass.length < 6) {
+            Utils.showToast('New password must be at least 6 characters.', 'warning');
+            return;
+        }
+        if (newPass !== confirmPass) {
+            Utils.showToast('Passwords do not match.', 'warning');
+            return;
+        }
+
+        if (!window.supabase) {
+            Utils.showToast('Authentication service is currently unavailable.', 'error');
+            return;
+        }
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        this.setLoading(submitBtn, true, 'Updating password...');
+
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPass });
+            this.setLoading(submitBtn, false);
+
+            if (error) {
+                Utils.showToast(error.message, 'error', 'Password Update Failed');
+            } else {
+                form.reset();
+                Utils.showToast('Your password has been changed successfully.', 'success', 'Password Updated');
+            }
+        } catch (err) {
+            this.setLoading(submitBtn, false);
+            Utils.showToast('Unexpected error: ' + err.message, 'error');
+        }
+    },
+
     // ── Admin: Save changes ─────────────────────────────
     async saveAdminChanges(compId) {
         const statusEl = document.getElementById('admin-status-select');
@@ -741,38 +865,56 @@ const App = {
         const priorityEl = document.getElementById('admin-priority-select');
 
         const complaint = await Complaints.getById(compId);
-        if (!complaint) return;
+        if (!complaint) {
+            Utils.showToast('Complaint record not found.', 'error');
+            return;
+        }
 
         const submitBtn = document.getElementById('save-admin-changes');
         this.setLoading(submitBtn, true, 'Saving changes...');
 
         let changed = false;
+        let lastError = null;
 
         // Status change
         if (statusEl && statusEl.value !== complaint.status) {
-            await Admin.updateComplaintStatus(compId, statusEl.value);
-            changed = true;
+            const res = await Admin.updateComplaintStatus(compId, statusEl.value);
+            if (!res.success) {
+                lastError = res.message;
+            } else {
+                changed = true;
+            }
         }
 
         // Department assignment
         if (deptEl && deptEl.value && deptEl.value !== complaint.department) {
-            await Admin.assignDepartment(compId, deptEl.value);
-            changed = true;
+            const res = await Admin.assignDepartment(compId, deptEl.value);
+            if (!res.success) {
+                lastError = res.message;
+            } else {
+                changed = true;
+            }
         }
 
         // Priority change
         if (priorityEl && priorityEl.value !== complaint.priority) {
-            await Admin.changePriority(compId, priorityEl.value);
-            changed = true;
+            const res = await Admin.changePriority(compId, priorityEl.value);
+            if (!res.success) {
+                lastError = res.message;
+            } else {
+                changed = true;
+            }
         }
 
         this.setLoading(submitBtn, false);
 
-        if (changed) {
+        if (lastError) {
+            Utils.showToast(lastError, 'error', 'Update Failed');
+        } else if (changed) {
             Utils.showToast('Complaint updated successfully.', 'success');
             this.router(); // Re-render to show updates
         } else {
-            Utils.showToast('No changes to save.', 'info');
+            Utils.showToast('No changes detected to save.', 'info');
         }
     },
 

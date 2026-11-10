@@ -1,32 +1,33 @@
 /* ============================================================
    CampusCare – Admin Module
-   Admin-specific dashboard stats and actions (Supabase-backed)
+   Admin-specific dashboard stats, department metrics & actions
    ============================================================ */
 
 const Admin = {
-    async getDashboardStats() {
+    async getDashboardStats(complaintsList = null) {
         if (!window.supabase) {
             return { total: 0, pending: 0, inProgress: 0, resolved: 0, urgent: 0 };
         }
-        const all = await Complaints.getAll();
+        const all = complaintsList || await Complaints.getAll();
         return Complaints.getStats(all);
     },
 
-    async getRecentComplaints(limit = 5) {
+    async getRecentComplaints(limit = 5, complaintsList = null) {
         if (!window.supabase) return [];
-        const all = await Complaints.getAll();
+        const all = complaintsList || await Complaints.getAll();
         return Complaints.sort('date', 'desc', all).slice(0, limit);
     },
 
-    async getUrgentComplaints() {
+    async getUrgentComplaints(complaintsList = null) {
         if (!window.supabase) return [];
-        const all = await Complaints.getAll();
-        return all.filter(c => c.priority === 'Urgent' || c.status === 'Pending');
+        const all = complaintsList || await Complaints.getAll();
+        // Truly urgent or high-priority unresolved complaints
+        return all.filter(c => (c.priority === 'Urgent' || c.priority === 'High') && c.status !== 'Resolved');
     },
 
-    async getComplaintsByCategory() {
+    async getComplaintsByCategory(complaintsList = null) {
         if (!window.supabase) return [];
-        const all = await Complaints.getAll();
+        const all = complaintsList || await Complaints.getAll();
         const counts = {};
         all.forEach(c => {
             counts[c.category] = (counts[c.category] || 0) + 1;
@@ -35,10 +36,27 @@ const Admin = {
             .sort((a, b) => b.count - a.count);
     },
 
-    async getComplaintsByDepartment() {
+    async getDepartments() {
+        if (window.supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('departments')
+                    .select('*')
+                    .order('name');
+                if (!error && data && data.length > 0) {
+                    return data;
+                }
+            } catch (e) {
+                // Fall back to DataStore
+            }
+        }
+        return DataStore.get(DataStore.KEYS.DEPARTMENTS) || DataStore.getDefaultDepartments();
+    },
+
+    async getComplaintsByDepartment(complaintsList = null) {
         if (!window.supabase) return [];
-        const all = await Complaints.getAll();
-        const departments = DataStore.get(DataStore.KEYS.DEPARTMENTS) || [];
+        const all = complaintsList || await Complaints.getAll();
+        const departments = await this.getDepartments();
         return departments.map(dept => {
             const deptComplaints = all.filter(c => c.department === dept.name);
             return {
@@ -51,9 +69,9 @@ const Admin = {
         });
     },
 
-    async getComplaintsByMonth() {
+    async getComplaintsByMonth(complaintsList = null) {
         if (!window.supabase) return [];
-        const all = await Complaints.getAll();
+        const all = complaintsList || await Complaints.getAll();
         const months = {};
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -73,8 +91,8 @@ const Admin = {
         return result;
     },
 
-    async getStatusDistribution() {
-        const stats = await this.getDashboardStats();
+    async getStatusDistribution(complaintsList = null) {
+        const stats = await this.getDashboardStats(complaintsList);
         return [
             { label: 'Pending', count: stats.pending, color: '#f59e0b' },
             { label: 'In Progress', count: stats.inProgress, color: '#3b82f6' },
@@ -88,7 +106,8 @@ const Admin = {
             const { data: profiles, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('role', 'student');
+                .eq('role', 'student')
+                .order('created_at', { ascending: false });
 
             if (error) {
                 console.error('Error fetching student profiles:', error.message);
@@ -107,7 +126,7 @@ const Admin = {
                     phone: s.phone || 'Not provided',
                     course: s.course || 'Not provided',
                     year: s.year || 'Not provided',
-                    avatar: s.avatar || 'U',
+                    avatar: s.avatar || (s.full_name ? s.full_name.slice(0, 2).toUpperCase() : 'U'),
                     createdAt: s.created_at,
                     totalComplaints: studentComplaints.length,
                     pendingComplaints: studentComplaints.filter(c => c.status === 'Pending').length,
