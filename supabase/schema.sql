@@ -149,19 +149,31 @@ $$ language plpgsql;
 
 grant execute on function public.get_platform_stats() to anon, authenticated;
 
--- Function: Promote a user to admin by email (run by project owner in SQL Editor)
+-- Function: Promote or establish a user as admin by email (run by project owner in SQL Editor)
 create or replace function public.make_user_admin(target_email text)
 returns text as $$
 declare
-  updated_count int;
+  target_user auth.users%rowtype;
 begin
-  update public.profiles set role = 'admin' where email = target_email;
-  get diagnostics updated_count = row_count;
-  if updated_count > 0 then
-    return 'User ' || target_email || ' promoted to admin successfully.';
-  else
-    return 'No profile found for email: ' || target_email;
+  select * into target_user from auth.users where lower(email) = lower(trim(target_email));
+  if not found then
+    return 'Error: No user found in Supabase Auth with email ' || target_email || '. Please create the user in Supabase Authentication > Users first.';
   end if;
+
+  insert into public.profiles (id, full_name, student_id, email, role, avatar)
+  values (
+    target_user.id,
+    coalesce(target_user.raw_user_meta_data->>'full_name', 'System Administrator'),
+    'ADM-' || substring(target_user.id::text from 1 for 6),
+    target_user.email,
+    'admin',
+    'AD'
+  )
+  on conflict (id) do update set
+    role = 'admin',
+    updated_at = now();
+
+  return 'Success: User ' || target_email || ' is now an Admin (Auth ID: ' || target_user.id || ')';
 end;
 $$ language plpgsql security definer;
 
@@ -196,6 +208,11 @@ create policy "Users can insert own profile"
 create or replace function public.prevent_profile_role_update()
 returns trigger as $$
 begin
+  -- Allow direct SQL executions, service role, or triggers where auth.uid() is null
+  if auth.uid() is null then
+    return new;
+  end if;
+
   if new.role is distinct from old.role and not public.is_admin(auth.uid()) then
     raise exception 'Permission denied: Students cannot alter account role.';
   end if;
@@ -240,8 +257,8 @@ create policy "Admins can delete complaints"
 create or replace function public.enforce_complaint_update_permissions()
 returns trigger as $$
 begin
-  -- Admins can update any field
-  if public.is_admin(auth.uid()) then
+  -- Service role, direct SQL, or Admins can update any field
+  if auth.uid() is null or public.is_admin(auth.uid()) then
     new.updated_at = now();
     return new;
   end if;
