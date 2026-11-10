@@ -164,9 +164,15 @@ const Auth = {
             return { success: false, message: window.SUPABASE_CONFIG_ERROR || 'Supabase authentication service is currently unavailable.' };
         }
 
+        // Support logging in with 'admin' username shortcut or standard email
+        const trimmed = (email || '').trim();
+        const loginEmail = (!trimmed.includes('@') && trimmed.toLowerCase() === 'admin')
+            ? 'admin@university.edu'
+            : trimmed;
+
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
-                email: email.trim(),
+                email: loginEmail,
                 password: password
             });
 
